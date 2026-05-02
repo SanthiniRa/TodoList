@@ -1,0 +1,106 @@
+/* 🌈 background */
+.bg {
+  min-height: 100vh;
+  text-align: center;
+  padding: 10px;
+
+  background: linear-gradient(
+    135deg,
+    #ff9a9e,
+    #fad0c4,
+    #fbc2eb,
+    #a1c4fd,
+    #84fab0,
+    #8fd3f4
+  );
+
+  background-size: 400% 400%;
+  animation: move 10s ease infinite;
+}
+
+@keyframes move {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* 🚀 IMPORTANT FIX: SIDE BY SIDE */
+.split {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 20px;
+  padding: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: stretch;
+}
+
+/* 👧👦 PANELS */
+.panel {
+  flex: 1 1 0;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 20px;
+  padding: 15px;
+}
+
+/* 📊 stats */
+.stats {
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+/* 🧩 task */
+.task {
+  width: 100%;
+  margin: 5px 0;
+  padding: 8px;
+  border: none;
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+}
+
+.task.done {
+  background: #b2f7ef;
+}
+
+/* 🎁 reward */
+.reward {
+  width: 100%;
+  margin: 5px 0;
+  padding: 8px;
+  border: none;
+  border-radius: 10px;
+  background: #ff6ec7;
+  color: white;
+}
+
+/* 🎒 inventory */
+.inv {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+/* 🔄 reset */
+.reset {
+  padding: 10px;
+  margin: 10px;
+  border: none;
+  border-radius: 10px;
+  background: white;
+  font-weight: bold;
+}
+
+/* 📱 mobile fix */
+@media (max-width: 768px) {
+  .split {
+    flex-direction: column !important;
+  }
+}

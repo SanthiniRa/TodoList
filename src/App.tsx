@@ -2,10 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { supabase } from './supabaseClient.tsx';
 
-/* 🎧 SOUND SYSTEM */
+/* SOUND */
 type SoundKey = 'click' | 'success' | 'reward';
 
-const SOUND_SRC: Record<SoundKey, string> = {
+const SOUND_SRC = {
   click: 'https://actions.google.com/sounds/v1/ui/click.ogg',
   success: 'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg',
   reward: 'https://actions.google.com/sounds/v1/crowds/applause.ogg',
@@ -20,27 +20,20 @@ const createSoundManager = () => {
     reward: new Audio(SOUND_SRC.reward),
   };
 
-  Object.values(audioMap).forEach((a) => {
-    a.preload = 'auto';
-    a.volume = 0.6;
-  });
-
   const unlock = () => {
     if (unlocked) return;
-    Object.values(audioMap).forEach((a) => {
-      a.play()
-        .then(() => {
-          a.pause();
-          a.currentTime = 0;
-        })
-        .catch(() => {});
+    Object.values(audioMap).forEach(a => {
+      a.play().then(() => {
+        a.pause();
+        a.currentTime = 0;
+      }).catch(() => {});
     });
     unlocked = true;
   };
 
-  const play = (key: SoundKey) => {
+  const play = (k: SoundKey) => {
     if (!unlocked) return;
-    const a = audioMap[key];
+    const a = audioMap[k];
     a.currentTime = 0;
     a.play().catch(() => {});
   };
@@ -48,471 +41,287 @@ const createSoundManager = () => {
   return { play, unlock };
 };
 
-const createSoundEngine = (sound: any) => ({
-  click: () => sound.play('click'),
-  success: () => sound.play('success'),
-  reward: () => sound.play('reward'),
+const createSoundEngine = (s: any) => ({
+  click: () => s.play('click'),
+  success: () => s.play('success'),
+  reward: () => s.play('reward'),
 });
 
-/* 🎆 REWARD EFFECTS (NEW) */
-const launchBalloonEffect = () => {
-  for (let i = 0; i < 10; i++) {
-    setTimeout(() => {
-      confetti({
-        particleCount: 35,
-        spread: 60,
-        startVelocity: 20,
-        gravity: 0.7,
-        scalar: 1.1,
-        shapes: ['circle'],
-      });
-    }, i * 120);
-  }
-};
-
-const launchFireworksEffect = () => {
-  const end = Date.now() + 1200;
-
-  const frame = () => {
-    confetti({
-      particleCount: 6,
-      spread: 90,
-      startVelocity: 45,
-      origin: {
-        x: Math.random(),
-        y: Math.random() * 0.6,
-      },
-    });
-
-    if (Date.now() < end) {
-      requestAnimationFrame(frame);
-    }
-  };
-
-  frame();
-};
-
-/* ⏰ TIME */
+/* TIME */
 const timeSlots = ['morning', 'afternoon', 'evening', 'night'] as const;
-type TimeSlot = (typeof timeSlots)[number];
+type TimeSlot = typeof timeSlots[number];
 
-const ROUTINE: Record<TimeSlot, number[]> = {
-  morning: [1, 2, 3, 5, 6, 7, 8, 9, 10, 11],
-  afternoon: [12, 13],
-  evening: [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26],
-  night: [27, 28, 29],
+const ROUTINE: Record<TimeSlot, string[]> = {
+  morning: ['MORN'],
+  afternoon: ['AFT'],
+  evening: ['EVE'],
+  night: ['MORN', 'AFT', 'EVE'],
 };
 
-/* 📋 TASKS */
-const tasksData = [
-  { id: 1, icon: '🤗', text: 'Morning Hug' },
-  { id: 2, icon: '🪥', text: 'Brush Teeth' },
-  { id: 3, icon: '🚿', text: 'Wash Face' },
-  { id: 4, icon: '🚽', text: 'Toilet' },
-  { id: 5, icon: '⚽', text: 'Play Time' },
-  { id: 6, icon: '🍳', text: 'Prepare Breakfast' },
-  { id: 7, icon: '🥣', text: 'Breakfast' },
-  { id: 8, icon: '🧽', text: 'Clean Up After Eating' },
-  { id: 9, icon: '🎒', text: 'Get Ready for School' },
-  { id: 10, icon: '💇', text: 'Hair / Cream' },
-  { id: 11, icon: '🙏', text: 'Pray' },
-  { id: 12, icon: '🍱', text: 'Lunch' },
-  { id: 13, icon: '⚽', text: 'Play Time' },
-  { id: 14, icon: '🤗', text: 'Evening Hug' },
-  { id: 15, icon: '🧼', text: 'Wash Hands' },
-  { id: 16, icon: '👕', text: 'Change Clothes' },
-  { id: 17, icon: '🛁', text: 'Bath' },
-  { id: 18, icon: '🏃', text: 'Workout' },
-  { id: 19, icon: '🎲', text: 'Play Time' },
-  { id: 20, icon: '🍛', text: 'Dinner' },
-  { id: 21, icon: '🧹', text: 'Clean Up After Eating' },
-  { id: 22, icon: '📖', text: 'Reading' },
-  { id: 23, icon: '🔢', text: 'Numbers' },
-  { id: 24, icon: '🎨', text: 'Drawing' },
-  { id: 25, icon: '🧠', text: 'Thinking Game' },
-  { id: 26, icon: '🧺', text: 'Tidy Up' },
-  { id: 27, icon: '🪥', text: 'Night Brush' },
-  { id: 28, icon: '🤗', text: 'Night Hug' },
-  { id: 29, icon: '🌙', text: 'Sleep' },
-];
+/* ICON */
+const getTaskIcon = (title: string) => {
+  const t = title.toLowerCase();
+  if (t.includes('brush')) return '🪥';
+  if (t.includes('breakfast')) return '🍳';
+  if (t.includes('lunch')) return '🍱';
+  if (t.includes('dinner')) return '🍛';
+  if (t.includes('play')) return '⚽';
+  if (t.includes('bath')) return '🛁';
+  if (t.includes('sleep')) return '🌙';
+  if (t.includes('read')) return '📖';
+  if (t.includes('clean')) return '🧹';
+  if (t.includes('hug')) return '🤗';
+  return '🧩';
+};
 
-/* 🎁 REWARDS */
-const rewards = [
-  { name: '🏎️ Car', cost: 10 },
-  { name: '🚙 Jeep', cost: 20 },
-  { name: '🏆 Trophy', cost: 40 },
-];
-
-const JAR_COLS = 4;
-const CELL = 38;
-const applause = new Audio(
-  'https://actions.google.com/sounds/v1/crowds/applause.ogg'
-);
-applause.volume = 0.8;
-/* 🧒 KID */
+/* KID */
 const createKid = () => ({
   xp: 0,
-  tasks: tasksData.map((t) => ({ ...t, done: false })),
+  tasks: [] as any[],
   dailyJar: [] as string[],
-  kindnessJar: [] as string[],
-  kindnessError: null as string | null,
 });
 
-const speak = (text: string) => {
-  const msg = new SpeechSynthesisUtterance(text);
-  msg.rate = 1;
-  msg.pitch = 1.6;
-  msg.volume = 1;
-  speechSynthesis.speak(msg);
-};
-
-/* 🚗 CAR */
-const carDrive = () => {
-  const el = document.createElement('div');
-  el.innerHTML = '🚗';
-  el.style.position = 'fixed';
-  el.style.left = '-50px';
-  el.style.top = '40%';
-  el.style.fontSize = '40px';
-  el.style.zIndex = '9999';
-
-  // ⬇️ slower animation (was 2s → now 4s)
-  el.style.transition = 'transform 4s linear';
-
-  document.body.appendChild(el);
-
-  requestAnimationFrame(() => {
-    el.style.transform = 'translateX(120vw)';
-  });
-
-  setTimeout(() => document.body.removeChild(el), 4200);
-};
-
-/* 🎈 BALLOONS */
-const balloonEffect = () => {
-  for (let i = 0; i < 10; i++) {
-    const el = document.createElement('div');
-    el.innerHTML = '🎈';
-    el.style.position = 'fixed';
-    el.style.left = Math.random() * 100 + 'vw';
-    el.style.bottom = '-50px';
-    el.style.fontSize = '30px';
-    el.style.zIndex = '9999';
-    el.style.transition = 'transform 3s ease-out, opacity 3s';
-
-    document.body.appendChild(el);
-
-    requestAnimationFrame(() => {
-      el.style.transform = 'translateY(-120vh)';
-      el.style.opacity = '0';
-    });
-
-    setTimeout(() => document.body.removeChild(el), 3000);
-  }
-};
-
-/* 🏆 TROPHY OVERLAY */
-const showTrophy = () => {
-  // 🔊 applause sound
-  applause.currentTime = 0;
-  applause.play().catch(() => {});
-
-  const el = document.createElement('div');
-  el.innerHTML = `
-    <div style="
-      position:fixed;
-      top:0;
-      left:0;
-      width:100%;
-      height:100%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:120px;
-      background:rgba(0,0,0,0.4);
-      z-index:9999;
-    ">🏆</div>
-  `;
-
-  document.body.appendChild(el);
-  setTimeout(() => document.body.removeChild(el), 1200);
-};
-
-/* 🚀 APP */
+/* REWARDS UI */
+const rewards = [
+  { key: 'Car', title: '🏎️ Car', cost: 10 },
+  { key: 'Jeep', title: '🚙 Jeep', cost: 20 },
+  { key: 'Trophy', title: '🏆 Trophy', cost: 40 },
+];
 
 export default function App() {
   const sound = useRef(createSoundManager()).current;
   const engine = useRef(createSoundEngine(sound)).current;
 
   const [page, setPage] = useState<'game' | 'kindness'>('game');
-  const [timeSlot, setTimeSlot] = useState('morning');
+  const [timeSlot, setTimeSlot] = useState<TimeSlot>('morning');
 
-  const [state, setState] = useState({
-    1: createKid(),
-    2: createKid(),
-  });
+  const [users, setUsers] = useState<any[]>([]);
+  const [state, setState] = useState<Record<string, any>>({});
 
-  /* ================= 🆕 LOAD FROM DB ================= */
+  /* ================= LOAD ================= */
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from('app_state')
-        .select('*')
-        .eq('id', 1)
-        .single();
+      const { data: usersData } = await supabase.from('users').select('*');
+      const { data: tasksData } = await supabase.from('tasks').select('*');
+      const { data: completions } = await supabase.from('task_completions').select('*');
+      const { data: redeemed } = await supabase.from('reward_redemptions').select('*');
+      const { data: rewardsData } = await supabase.from('rewards').select('*');
 
-      if (data?.data) {
-        setState(data.data);
-      }
+      setUsers(usersData || []);
+
+      const newState: any = {};
+
+      (usersData || []).forEach(user => {
+        const userCompletions = completions?.filter(c => c.user_id === user.id) || [];
+        const userRewards = redeemed?.filter(r => r.user_id === user.id) || [];
+
+        newState[user.id] = {
+          xp: userCompletions.length * 10,
+
+          tasks: (tasksData || []).map(t => ({
+            id: t.id,
+            icon: getTaskIcon(t.title),
+            text: t.title,
+            description: t.description || 'MORN',
+            done: userCompletions.some(c => c.task_id === t.id),
+          })),
+
+          dailyJar: userRewards
+            .map(r => rewardsData?.find(x => x.id === r.reward_id)?.title)
+            .filter(Boolean),
+        };
+      });
+
+      setState(newState);
     };
 
     load();
   }, []);
 
-  /* ================= 🆕 SAVE TO DB ================= */
-  useEffect(() => {
-    console.log('🔥 STATE CHANGED - attempting save');
+  /* ================= TASK ================= */
+  const toggleTask = async (user: any, taskId: string) => {
+    const task = state[user.id]?.tasks?.find((t: any) => t.id === taskId);
+    if (!task) return;
 
-    const save = async () => {
-      const { res } = await supabase
-        .from('users')
-        .insert([{ name: 'Kid 1' }])
-        .select()
-        .single();
+    const isDone = task.done;
 
-      console.log('📦 SUPABASE RESPONSE:', res);
-    };
-
-    save();
-  }, [state]);
-
-  const visibleIds = ROUTINE[timeSlot];
-
-  /* 🧩 TASKS */
-  const toggleTask = (kidId: number, taskId: number) => {
-    setState((prev) => {
-      const kid = prev[kidId];
-      let xpChange = 0;
-
-      const updated = kid.tasks.map((t) => {
-        if (t.id === taskId) {
-          const newDone = !t.done;
-          xpChange = newDone ? 10 : -10;
-
-          if (newDone) {
-            engine.click();
-            setTimeout(() => engine.success(), 120);
-            confetti();
-          }
-
-          return { ...t, done: newDone };
-        }
-        return t;
-      });
+    setState(prev => {
+      const updated = prev[user.id].tasks.map((t: any) =>
+        t.id === taskId ? { ...t, done: !t.done } : t
+      );
 
       return {
         ...prev,
-        [kidId]: {
-          ...kid,
-          xp: Math.max(0, kid.xp + xpChange),
+        [user.id]: {
+          ...prev[user.id],
           tasks: updated,
+          xp: prev[user.id].xp + (isDone ? -10 : 10),
         },
       };
     });
+
+    if (!isDone) {
+      await supabase.from('task_completions').insert({
+        user_id: user.id,
+        task_id: taskId,
+      });
+    } else {
+      await supabase
+        .from('task_completions')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('task_id', taskId);
+    }
   };
 
-  /* 🎁 REWARD (UPDATED EFFECTS) */
-  const buyReward = (kidId: number, item: any) => {
-    setState((prev) => {
-      const kid = prev[kidId];
+  /* ================= REWARD ================= */
+  const buyReward = async (user: any, item: any) => {
+    const { data: reward } = await supabase
+      .from('rewards')
+      .select('*')
+      .eq('title', item.key)
+      .single();
 
-      if (kid.xp < item.cost) return prev;
+    if (!reward) return;
+
+    setState(prev => {
+      const kid = prev[user.id];
+      if (kid.xp < reward.points_required) return prev;
 
       engine.reward();
       confetti();
 
-      // 🔊 FUNNY VOICE (no UI change)
-      speak(`Wow! You earned Great job!`);
-
-      // 🚗 Car effect
-      if (item.name.includes('Car')) {
-        carDrive();
-      }
-
-      // 🎈 Jeep effect
-      if (item.name.includes('Jeep')) {
-        balloonEffect();
-      }
-
-      // 🏆 Trophy effect
-      if (item.name.includes('Trophy')) {
-        showTrophy();
-      }
+      if (item.title.includes('Car')) moveCar();
+      if (item.title.includes('Jeep')) balloonEffect();
+      if (item.title.includes('Trophy')) trophyDance();
 
       return {
         ...prev,
-        [kidId]: {
+        [user.id]: {
           ...kid,
-          xp: kid.xp - item.cost,
-          dailyJar: [...kid.dailyJar, item.name],
+          xp: kid.xp - reward.points_required,
+          dailyJar: [...kid.dailyJar, reward.title],
         },
       };
     });
-  };
 
-  /* ❤️ KINDNESS */
-  const addKindness = (kidId: number, icon: string) => {
-    setState((prev) => {
-      const kid = prev[kidId];
-
-      if (kid.kindnessJar.length >= 20) {
-        return {
-          ...prev,
-          [kidId]: {
-            ...kid,
-            kindnessError: '🫙 Jar is full!',
-          },
-        };
-      }
-
-      engine.success();
-      setTimeout(() => confetti(), 80);
-
-      return {
-        ...prev,
-        [kidId]: {
-          ...kid,
-          kindnessJar: [...kid.kindnessJar, icon],
-          kindnessError: null,
-        },
-      };
+    await supabase.from('reward_redemptions').insert({
+      user_id: user.id,
+      reward_id: reward.id,
     });
   };
 
-  /* ================= UI ================= */
-  if (page === 'game') {
-    return (
-      <div style={container} onClick={() => sound.unlock()}>
-        <h1>ToDo Game</h1>
+  /* EFFECTS */
+  const moveCar = () => {
+    const el = document.createElement('div');
+    el.innerHTML = '🚗';
+    el.style.position = 'fixed';
+    el.style.left = '-50px';
+    el.style.top = '40%';
+    el.style.fontSize = '40px';
+    el.style.transition = 'transform 4s linear';
+    document.body.appendChild(el);
 
-        <select
-          value={timeSlot}
-          onChange={(e) => setTimeSlot(e.target.value as TimeSlot)}
-        >
-          {timeSlots.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
+    requestAnimationFrame(() => {
+      el.style.transform = 'translateX(120vw)';
+    });
 
-        <button style={btn} onClick={() => setPage('kindness')}>
-          ❤️ Kindness Page
-        </button>
+    setTimeout(() => document.body.removeChild(el), 4000);
+  };
 
-        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-          {[1, 2].map((kidId) => (
-            <div key={kidId} style={card}>
-              <h2 style={{ color: kidId === 1 ? '#ff4d6d' : '#3a86ff' }}>
-                {kidId === 1 ? '👧 Lilibet' : '👦 Dhruv'}
-              </h2>
+  const balloonEffect = () => {
+    for (let i = 0; i < 10; i++) {
+      const el = document.createElement('div');
+      el.innerHTML = '🎈';
+      el.style.position = 'fixed';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.bottom = '-50px';
+      document.body.appendChild(el);
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {state[kidId].tasks
-                  .filter((t) => visibleIds.includes(t.id))
-                  .map((t) => (
+      requestAnimationFrame(() => {
+        el.style.transform = 'translateY(-120vh)';
+      });
+
+      setTimeout(() => document.body.removeChild(el), 3000);
+    }
+  };
+
+  const trophyDance = () => {
+    const el = document.createElement('div');
+    el.innerHTML = '🏆';
+    el.style.position = 'fixed';
+    el.style.top = '40%';
+    el.style.left = '50%';
+    el.style.fontSize = '120px';
+    document.body.appendChild(el);
+
+    setTimeout(() => document.body.removeChild(el), 1200);
+  };
+
+  const visibleCategories = ROUTINE[timeSlot];
+
+  return (
+    <div style={container} onClick={() => sound.unlock()}>
+      <h1>ToDo Game</h1>
+
+      <select value={timeSlot} onChange={(e) => setTimeSlot(e.target.value as TimeSlot)}>
+        {timeSlots.map(t => <option key={t}>{t}</option>)}
+      </select>
+
+      <button style={btn} onClick={() => setPage(page === 'game' ? 'kindness' : 'game')}>
+        ❤️ Kindness Page
+      </button>
+
+      {page === 'game' && (
+        <div style={{ display: 'flex', gap: 20 }}>
+          {users.map(u => (
+            <div key={u.id} style={card}>
+              <h2>{u.name}</h2>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {(state[u.id]?.tasks || [])
+                  .filter((t: any) => visibleCategories.includes(t.description))
+                  .map((t: any) => (
                     <button
                       key={t.id}
-                      onClick={() => toggleTask(kidId, t.id)}
+                      onClick={() => toggleTask(u, t.id)}
                       style={{
                         ...btn,
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-start',
-                        gap: 12,
                         background: t.done ? '#b2f7ef' : '#ffe5ec',
-                        fontSize: 16,
                         color: 'black',
                       }}
                     >
-                      <span style={{ fontSize: 26, minWidth: 32 }}>
-                        {t.icon}
-                      </span>
-                      <span style={{ flex: 1 }}>{t.text}</span>
+                      {t.icon} {t.text}
                     </button>
                   ))}
               </div>
 
               <h3>🎁 Rewards</h3>
-              {rewards.map((r) => (
-                <button
-                  key={r.name}
-                  onClick={() => buyReward(kidId, r)}
-                  style={{ ...btn, background: '#ff6ec7', color: 'white' }}
-                >
-                  {r.name} ({r.cost})
+              {rewards.map(r => (
+                <button key={r.key} onClick={() => buyReward(u, r)}>
+                  {r.title} ({r.cost})
                 </button>
               ))}
 
               <h4>🧺 Reward Basket</h4>
-              {state[kidId].dailyJar.map((item, idx) => (
-                <div
-                  key={idx}
-                  style={{ padding: 6, margin: 4, background: '#fff0f6' }}
-                >
-                  {item}
-                </div>
+              {(state[u.id]?.dailyJar || []).map((r: string, i: number) => (
+                <div key={i}>{r}</div>
               ))}
             </div>
           ))}
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div style={container} onClick={() => sound.unlock()}>
-      <h1>Kindness Page</h1>
-      <button style={btn} onClick={() => setPage('game')}>
-        Back
-      </button>
-
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 40 }}>
-        {[1, 2].map((kidId) => (
-          <div key={kidId} style={card}>
-            <h2>{kidId === 1 ? '👧' : '👦'}</h2>
-
-            <button style={btn} onClick={() => addKindness(kidId, '❤️')}>
-              ❤️ Add
-            </button>
-
-            <div style={jar}>
-              {state[kidId].kindnessJar.map((i, idx) => {
-                const col = idx % JAR_COLS;
-                const row = Math.floor(idx / JAR_COLS);
-
-                return (
-                  <span
-                    key={idx}
-                    style={{
-                      position: 'absolute',
-                      left: 20 + col * CELL,
-                      bottom: 20 + row * CELL,
-                      fontSize: 22,
-                    }}
-                  >
-                    {i}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
+      {page === 'kindness' && (
+        <div style={{ padding: 20 }}>
+          <h2>Kindness Page</h2>
+        </div>
+      )}
     </div>
   );
 }
 
-/* 🎨 STYLES */
+/* STYLES */
 const container: React.CSSProperties = {
   minHeight: '100vh',
   padding: 10,
@@ -532,15 +341,4 @@ const btn: React.CSSProperties = {
   borderRadius: 10,
   border: 'none',
   cursor: 'pointer',
-};
-
-const jar: React.CSSProperties = {
-  height: 280,
-  width: 180,
-  border: '3px solid #555',
-  borderRadius: 50,
-  position: 'relative',
-  overflow: 'hidden',
-  background: '#fff',
-  marginTop: 10,
 };

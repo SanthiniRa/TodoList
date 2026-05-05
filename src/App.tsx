@@ -3,13 +3,22 @@ import confetti from 'canvas-confetti';
 import { supabase } from './supabaseClient.tsx';
 
 /* SOUND */
-type SoundKey = 'click' | 'success' | 'reward';
+type SoundKey =
+  | 'click'
+  | 'car'
+  | 'success'
+  | 'reward'
+  | 'jarOpen'
+  | 'jarFill';
 
-const SOUND_SRC = {
-  click: 'https://actions.google.com/sounds/v1/ui/click.ogg',
-  success: 'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg',
-  reward: 'https://actions.google.com/sounds/v1/crowds/applause.ogg',
-};
+  const SOUND_SRC = {
+    click: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg',
+    car: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg',
+    success: 'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg',
+    reward: 'https://actions.google.com/sounds/v1/crowds/applause.ogg',
+    jarOpen: 'https://actions.google.com/sounds/v1/impacts/wood_plank_flicks.ogg',
+    jarFill: 'https://actions.google.com/sounds/v1/cartoon/boing.ogg',
+  };
 
 const createSoundManager = () => {
   let unlocked = false;
@@ -17,17 +26,27 @@ const createSoundManager = () => {
   const audioMap: Record<SoundKey, HTMLAudioElement> = {
     click: new Audio(SOUND_SRC.click),
     success: new Audio(SOUND_SRC.success),
+    car: new Audio(SOUND_SRC.car),
     reward: new Audio(SOUND_SRC.reward),
+    jarOpen: new Audio(SOUND_SRC.jarOpen),
+    jarFill: new Audio(SOUND_SRC.jarFill),
   };
+
 
   const unlock = () => {
     if (unlocked) return;
+  
     Object.values(audioMap).forEach(a => {
-      a.play().then(() => {
-        a.pause();
-        a.currentTime = 0;
-      }).catch(() => {});
+      a.volume = 0;
+      a.play()
+        .then(() => {
+          a.pause();
+          a.currentTime = 0;
+          a.volume = 1;
+        })
+        .catch(() => {});
     });
+  
     unlocked = true;
   };
 
@@ -45,7 +64,37 @@ const createSoundEngine = (s: any) => ({
   click: () => s.play('click'),
   success: () => s.play('success'),
   reward: () => s.play('reward'),
+  car: () => s.play('car'),
+  jarFill: () => s.play('jarFill'),
+  jarOpen: () => s.play('jarOpen'),
 });
+
+const playEngineSound = () => {
+  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+  const ctx = new AudioContext();
+
+  const oscillator = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  oscillator.type = 'sawtooth';
+  oscillator.frequency.setValueAtTime(120, ctx.currentTime);
+
+  gain.gain.setValueAtTime(0.2, ctx.currentTime);
+
+  oscillator.connect(gain);
+  gain.connect(ctx.destination);
+
+  oscillator.start();
+
+  // rising “engine rev”
+  oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 1.2);
+
+  // stop
+  setTimeout(() => {
+    oscillator.stop();
+    ctx.close();
+  }, 1200);
+};
 
 /* TIME */
 const timeSlots = ['morning', 'afternoon', 'evening', 'night'] as const;
@@ -74,19 +123,18 @@ const getTaskIcon = (title: string) => {
   return '🧩';
 };
 
-/* KID */
-const createKid = () => ({
-  xp: 0,
-  tasks: [] as any[],
-  dailyJar: [] as string[],
-});
-
-/* REWARDS UI */
+/* REWARDS */
 const rewards = [
   { key: 'Car', title: '🏎️ Car', cost: 10 },
   { key: 'Jeep', title: '🚙 Jeep', cost: 20 },
   { key: 'Trophy', title: '🏆 Trophy', cost: 40 },
 ];
+
+const getRoomLevel = (xp: number) => {
+  if (xp > 100) return 3;
+  if (xp > 50) return 2;
+  return 1;
+};
 
 export default function App() {
   const sound = useRef(createSoundManager()).current;
@@ -98,26 +146,43 @@ export default function App() {
   const [users, setUsers] = useState<any[]>([]);
   const [state, setState] = useState<Record<string, any>>({});
 
+  /* ✅ KINDNESS (2 jars per kid) */
+  const [kindnessJar, setKindnessJar] = useState<Record<string, string[]>>({});
+  const [openJar, setOpenJar] = useState<string | null>(null);
+  const handleJarClick = (userId: string) => {
+    sound.unlock();
+  
+    engine.jarOpen();   // lid open sound
+    setOpenJar(userId);
+  
+    setTimeout(() => {
+      setOpenJar(null);
+      engine.jarFill(); // when closing
+    }, 1200);
+  };
   /* ================= LOAD ================= */
   useEffect(() => {
     const load = async () => {
       const { data: usersData } = await supabase.from('users').select('*');
       const { data: tasksData } = await supabase.from('tasks').select('*');
-      const { data: completions } = await supabase.from('task_completions').select('*');
+      const today = new Date().toISOString().split('T')[0];
+      const { data: completions } = await supabase.from('task_completions').select('*').eq('date', today);
       const { data: redeemed } = await supabase.from('reward_redemptions').select('*');
       const { data: rewardsData } = await supabase.from('rewards').select('*');
 
       setUsers(usersData || []);
-
+      
       const newState: any = {};
+      const jarInit: any = {};
 
       (usersData || []).forEach(user => {
+        jarInit[user.id] = [];
+
         const userCompletions = completions?.filter(c => c.user_id === user.id) || [];
         const userRewards = redeemed?.filter(r => r.user_id === user.id) || [];
 
         newState[user.id] = {
           xp: userCompletions.length * 10,
-
           tasks: (tasksData || []).map(t => ({
             id: t.id,
             icon: getTaskIcon(t.title),
@@ -125,7 +190,6 @@ export default function App() {
             description: t.description || 'MORN',
             done: userCompletions.some(c => c.task_id === t.id),
           })),
-
           dailyJar: userRewards
             .map(r => rewardsData?.find(x => x.id === r.reward_id)?.title)
             .filter(Boolean),
@@ -133,6 +197,7 @@ export default function App() {
       });
 
       setState(newState);
+      setKindnessJar(jarInit);
     };
 
     load();
@@ -190,11 +255,9 @@ export default function App() {
 
       engine.reward();
       confetti();
-
-      if (item.title.includes('Car')) moveCar();
-      if (item.title.includes('Jeep')) balloonEffect();
+      if (item.title.includes('Car')) moveCar(); 
+      if (item.title.includes('Jeep')) balloonEffect(); 
       if (item.title.includes('Trophy')) trophyDance();
-
       return {
         ...prev,
         [user.id]: {
@@ -208,57 +271,175 @@ export default function App() {
     await supabase.from('reward_redemptions').insert({
       user_id: user.id,
       reward_id: reward.id,
+      points_spent: reward.points_required,
     });
   };
 
-  /* EFFECTS */
+  /* ================= KINDNESS ADD ================= */
+  const addKindness = (userId: string, emoji: string) => {
+    setKindnessJar(prev => ({
+      ...prev,
+      [userId]: [...(prev[userId] || []), emoji],
+    }));
+
+    // small animation
+    confetti();
+  };
+
   const moveCar = () => {
+    sound.unlock();
+    //sound.play('car');
+    //playEngineSound();
+    engine.car();
     const el = document.createElement('div');
-    el.innerHTML = '🚗';
+    el.innerHTML = '🚗💨';
+  
     el.style.position = 'fixed';
-    el.style.left = '-50px';
-    el.style.top = '40%';
-    el.style.fontSize = '40px';
-    el.style.transition = 'transform 4s linear';
+    el.style.left = '-80px';
+    el.style.top = '45%';
+    el.style.fontSize = '50px';
+    el.style.transition = 'transform 3s cubic-bezier(.2,.8,.2,1)';
+    el.style.zIndex = '9999';
+    el.style.pointerEvents = 'none';
+  
+    document.body.appendChild(el);
+    el.getBoundingClientRect();
+  
+    const interval = setInterval(() => {
+      const spark = document.createElement('div');
+      spark.innerHTML = '✨';
+  
+      spark.style.position = 'fixed';
+      spark.style.left = `${Math.random() * 20}px`;
+      spark.style.top = '45%';
+      spark.style.fontSize = '18px';
+      spark.style.zIndex = '9998';
+      spark.style.pointerEvents = 'none';
+  
+      document.body.appendChild(spark);
+  
+      setTimeout(() => {
+        spark.remove();
+      }, 400);
+    }, 100);
+  
+    requestAnimationFrame(() => {
+      el.style.transform = 'translateX(120vw) rotate(5deg)';
+    });
+  
+    setTimeout(() => {
+      clearInterval(interval);
+  
+      //sound.play('success');
+  
+      el.remove();
+    }, 3000);
+  };
+  
+const balloonEffect = () => {
+  const emojis = ['🎈', '🎉', '✨', '💖', '🌟'];
+
+  for (let i = 0; i < 15; i++) {
+    const el = document.createElement('div');
+
+    el.innerHTML = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.position = 'fixed';
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.bottom = '-50px';
+    el.style.fontSize = `${20 + Math.random() * 20}px`;
+    el.style.zIndex = '9999';
+    el.style.transition = `transform ${2 + Math.random() * 2}s ease-out, opacity 2s`;
+
     document.body.appendChild(el);
 
     requestAnimationFrame(() => {
-      el.style.transform = 'translateX(120vw)';
+      el.style.transform = `
+        translateY(-120vh)
+        rotate(${Math.random() * 720}deg)
+      `;
+      el.style.opacity = '0';
     });
 
-    setTimeout(() => document.body.removeChild(el), 4000);
-  };
+    setTimeout(() => {
+      document.body.removeChild(el);
+    }, 3000);
+  }
+};
 
-  const balloonEffect = () => {
-    for (let i = 0; i < 10; i++) {
-      const el = document.createElement('div');
-      el.innerHTML = '🎈';
-      el.style.position = 'fixed';
-      el.style.left = Math.random() * 100 + 'vw';
-      el.style.bottom = '-50px';
-      document.body.appendChild(el);
+const trophyDance = () => {
+  const el = document.createElement('div');
+  el.innerHTML = '🏆 WOW';
 
-      requestAnimationFrame(() => {
-        el.style.transform = 'translateY(-120vh)';
-      });
+  el.style.position = 'fixed';
+  el.style.top = '50%';
+  el.style.left = '50%';
+  el.style.transform = 'translate(-50%, -50%) scale(0.3)';
+  el.style.fontSize = '70px';
+  el.style.fontWeight = 'bold';
+  el.style.color = '#ffd700';
+  el.style.textShadow = '0 0 25px #ffd700, 0 0 50px #ffea00';
+  el.style.zIndex = '9999';
+  el.style.transition = 'all 0.6s cubic-bezier(.2,1.5,.3,1)';
+  el.style.pointerEvents = 'none';
 
-      setTimeout(() => document.body.removeChild(el), 3000);
-    }
-  };
+  document.body.appendChild(el);
 
-  const trophyDance = () => {
-    const el = document.createElement('div');
-    el.innerHTML = '🏆';
-    el.style.position = 'fixed';
-    el.style.top = '40%';
-    el.style.left = '50%';
-    el.style.fontSize = '120px';
-    document.body.appendChild(el);
+  // 🌟 GOLD FLASH BACKGROUND
+  const flash = document.createElement('div');
+  flash.style.position = 'fixed';
+  flash.style.inset = '0';
+  flash.style.background = 'radial-gradient(circle, rgba(255,215,0,0.6), rgba(0,0,0,0.3))';
+  flash.style.opacity = '0';
+  flash.style.zIndex = '9998';
+  flash.style.transition = 'opacity 0.3s ease';
+  document.body.appendChild(flash);
 
-    setTimeout(() => document.body.removeChild(el), 1200);
-  };
+  // 🎆 CONFETTI BURST
+  import('canvas-confetti').then(({ default: confetti }) => {
+    confetti({
+      particleCount: 120,
+      spread: 80,
+      origin: { y: 0.6 },
+    });
+  });
 
+  // ⚡ SCREEN SHAKE (light)
+  document.body.style.transform = 'translateX(2px)';
+  setTimeout(() => {
+    document.body.style.transform = 'translateX(-2px)';
+  }, 50);
+  setTimeout(() => {
+    document.body.style.transform = 'translateX(0px)';
+  }, 120);
+
+  requestAnimationFrame(() => {
+    el.style.transform = 'translate(-50%, -50%) scale(1.4)';
+    flash.style.opacity = '1';
+  });
+
+  setTimeout(() => {
+    el.style.transform = 'translate(-50%, -50%) scale(1)';
+    flash.style.opacity = '0';
+  }, 400);
+
+  setTimeout(() => {
+    el.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    flash.style.opacity = '0';
+  }, 900);
+
+  setTimeout(() => {
+    document.body.removeChild(el);
+    document.body.removeChild(flash);
+  }, 1300);
+};
   const visibleCategories = ROUTINE[timeSlot];
+  const getItemStyle = (i: number): React.CSSProperties => ({
+    position: 'absolute',
+    left: `${(i * 20) % 80 + 10}%`,
+    top: `${Math.floor(i / 4) * 60 + 20}px`,
+    fontSize: 30,
+    transition: 'transform 0.3s ease',
+  });
 
   return (
     <div style={container} onClick={() => sound.unlock()}>
@@ -272,11 +453,20 @@ export default function App() {
         ❤️ Kindness Page
       </button>
 
+      {/* ================= GAME ================= */}
       {page === 'game' && (
         <div style={{ display: 'flex', gap: 20 }}>
           {users.map(u => (
             <div key={u.id} style={card}>
-              <h2>{u.name}</h2>
+              <h2 style={{
+                background: u.gender === 'girl' ? '#ff6bcb' : '#4dabf7',
+                color: 'white',
+                padding: '6px 12px',
+                borderRadius: '12px',
+                display: 'inline-block',
+              }}>
+                {u.name}
+              </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {(state[u.id]?.tasks || [])
@@ -284,7 +474,9 @@ export default function App() {
                   .map((t: any) => (
                     <button
                       key={t.id}
-                      onClick={() => toggleTask(u, t.id)}
+                      onClick={() =>   {sound.unlock();
+                        engine.click();   
+                        confetti();toggleTask(u, t.id)}}
                       style={{
                         ...btn,
                         background: t.done ? '#b2f7ef' : '#ffe5ec',
@@ -303,25 +495,108 @@ export default function App() {
                 </button>
               ))}
 
-              <h4>🧺 Reward Basket</h4>
-              {(state[u.id]?.dailyJar || []).map((r: string, i: number) => (
-                <div key={i}>{r}</div>
-              ))}
+<h4>🏡 My Room</h4>
+
+<div style={houseContainer}>
+  <div style={houseRoof} />
+
+  <div style={houseRoom}>
+    {/* TOP AREA */}
+    <div style={row}>
+      {(state[u.id]?.dailyJar || [])
+        .filter(r => r.includes('Trophy'))
+        .map((r, i) => (
+          <span key={i} style={item}>
+            🏆
+          </span>
+        ))}
+    </div>
+
+    {/* MIDDLE AREA */}
+    <div style={row}>
+      {(state[u.id]?.dailyJar || [])
+        .filter(r => r.includes('Car'))
+        .map((r, i) => (
+          <span key={i} style={item}>
+            🚗
+          </span>
+        ))}
+    </div>
+
+    {/* BOTTOM AREA */}
+    <div style={row}>
+      {(state[u.id]?.dailyJar || [])
+        .filter(r => !r.includes('Car') && !r.includes('Trophy'))
+        .map((r, i) => (
+          <span key={i} style={item}>
+            🎁
+          </span>
+        ))}
+    </div>
+  </div>
+</div>
             </div>
           ))}
         </div>
       )}
 
+      {/* ================= KINDNESS PAGE (2 JARS) ================= */}
       {page === 'kindness' && (
-        <div style={{ padding: 20 }}>
-          <h2>Kindness Page</h2>
+        <div style={{ padding: 20, textAlign: 'center' }}>
+          <h2>💖 Kindness Hearts</h2>
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 40 }}>
+            
+            {users.map(u => (
+              <div key={u.id} style={{ textAlign: 'center' }}>
+                
+                <h3>{u.name}</h3>
+
+                {/* ❤️ HEART JAR */}
+                
+                <div style={jarStyle} onClick={() => handleJarClick(u.id)}>
+  
+                  {/* LID */}
+                  <div
+                      key={openJar === u.id ? 'open' : 'closed'}  // 👈 IMPORTANT
+                      style={{
+                        ...jarLid,
+                        animation: openJar === u.id ? 'lidOpen 1s forwards' : undefined,
+                      }}
+                    />
+                  <div style={glassShine}></div>
+                  {(kindnessJar[u.id] || []).map((e, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        fontSize: 26,
+                        animation: 'pop 0.3s ease',
+                      }}
+                    >
+                      {e}
+                    </span>
+                  ))}
+                </div>
+
+                {/* BUTTONS */}
+                <div style={{ marginTop: 10 }}>
+                  <button style={btn} onClick={() => addKindness(u.id, '💖')}>💖</button>
+                  <button style={btn} onClick={() => addKindness(u.id, '🤗')}>🤗</button>
+                  <button style={btn} onClick={() => addKindness(u.id, '🌟')}>🌟</button>
+                  <button style={btn} onClick={() => addKindness(u.id, '😊')}>😊</button>
+                </div>
+
+              </div>
+            ))}
+
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-/* STYLES */
+/* STYLES (UNCHANGED) */
 const container: React.CSSProperties = {
   minHeight: '100vh',
   padding: 10,
@@ -341,4 +616,120 @@ const btn: React.CSSProperties = {
   borderRadius: 10,
   border: 'none',
   cursor: 'pointer',
+};
+
+const roomStyle: React.CSSProperties = {
+  width: '100%',
+  height: 240,
+  position: 'relative',
+  overflow: 'hidden',
+  borderRadius: 20,
+};
+
+const jarStyle: React.CSSProperties = {
+  width: '25vw',
+  height: '40vh',
+  margin: '0 auto',
+  position: 'relative',
+
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'center',
+  alignItems: 'flex-end',
+  gap: 10,
+  padding: '40px 20px 20px',
+
+  overflow: 'hidden',
+
+  background: 'linear-gradient(180deg, #e3f2fd, #ffffff)',
+  border: '3px solid #90caf9',
+
+  /* 👇 THIS MAKES IT JAR SHAPED */
+  borderBottomLeftRadius: '80px',
+  borderBottomRightRadius: '80px',
+  borderTopLeftRadius: '30px',
+  borderTopRightRadius: '30px',
+
+  boxShadow: `
+    inset 0 10px 20px rgba(255,255,255,0.6),
+    inset 0 -10px 20px rgba(0,0,0,0.05),
+    0 20px 40px rgba(0,0,0,0.2)
+  `,
+};
+
+const jarLid: React.CSSProperties = {
+  position: 'absolute',
+  top: -15,
+  left: '50%',
+  transform: 'translateX(-50%)',
+
+  width: '55%',
+  height: 35,
+
+  background: '#74c0fc',
+  borderRadius: 12,
+  boxShadow: '0 5px 10px rgba(0,0,0,0.3)',
+  zIndex: 5,
+};
+
+const glassShine: React.CSSProperties = {
+  position: 'absolute',
+  top: 20,
+  left: 20,
+  width: '30%',
+  height: '60%',
+  background: 'rgba(255,255,255,0.3)',
+  borderRadius: '50%',
+  filter: 'blur(10px)',
+};
+const houseContainer: React.CSSProperties = {
+  width: '100%',
+  maxWidth: 340,
+  margin: '0 auto',
+  position: 'relative',
+};
+
+const houseRoof: React.CSSProperties = {
+  width: 0,
+  height: 0,
+  margin: '0 auto',
+
+  // 👇 correct responsive trick
+  borderLeft: '170px solid transparent',
+  borderRight: '170px solid transparent',
+  borderBottom: '90px solid #ffb3c6',
+
+  position: 'relative',
+  top: 0,
+};
+
+const houseRoom: React.CSSProperties = {
+  width: '100%',
+  height: 260,
+
+  background: 'linear-gradient(to bottom, #ffffff, #e6f2ff)',
+  border: '3px solid #74c0fc',
+  borderTop: 'none',
+
+  borderRadius: '0 0 16px 16px',
+  boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'space-around',
+  padding: 10,
+
+  boxSizing: 'border-box',
+};
+
+const row: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  gap: 10,
+  flexWrap: 'wrap',
+};
+
+const item: React.CSSProperties = {
+  fontSize: 32,
+  animation: 'popIn 0.3s ease',
 };

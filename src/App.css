@@ -18,6 +18,10 @@
   animation: move 10s ease infinite;
 }
 
+.room-item:hover {
+  transform: scale(1.2) rotate(-2deg);
+}
+
 @keyframes move {
   0% {
     background-position: 0% 50%;
@@ -97,10 +101,44 @@
   background: white;
   font-weight: bold;
 }
+/*rewards*/
+@keyframes floatIn {
+  0% { transform: scale(0.5) translateY(20px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes popIn {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
 
 /* 📱 mobile fix */
 @media (max-width: 768px) {
   .split {
     flex-direction: column !important;
+  }
+}
+
+@keyframes lidOpen {
+  0% {
+    transform: translateX(-50%) rotate(0deg);
+    top: -10px;
+  }
+  30% {
+    transform: translateX(-50%) rotate(-20deg);
+  }
+  60% {
+    transform: translateX(100px) rotate(120deg);
+  }
+  100% {
+    transform: translateX(200px) rotate(200deg);
+    top: 100px;
+    opacity: 0;
   }
 }

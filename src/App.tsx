@@ -11,14 +11,14 @@ type SoundKey =
   | 'jarOpen'
   | 'jarFill';
 
-  const SOUND_SRC = {
-    click: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg',
-    car: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg',
-    success: 'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg',
-    reward: 'https://actions.google.com/sounds/v1/crowds/applause.ogg',
-    jarOpen: 'https://actions.google.com/sounds/v1/impacts/wood_plank_flicks.ogg',
-    jarFill: 'https://actions.google.com/sounds/v1/cartoon/boing.ogg',
-  };
+const SOUND_SRC = {
+  click: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg',
+  car: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg',
+  success: 'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg',
+  reward: 'https://actions.google.com/sounds/v1/crowds/applause.ogg',
+  jarOpen: 'https://actions.google.com/sounds/v1/impacts/wood_plank_flicks.ogg',
+  jarFill: 'https://actions.google.com/sounds/v1/cartoon/boing.ogg',
+};
 
 const createSoundManager = () => {
   let unlocked = false;
@@ -35,7 +35,7 @@ const createSoundManager = () => {
 
   const unlock = () => {
     if (unlocked) return;
-  
+
     Object.values(audioMap).forEach(a => {
       a.volume = 0;
       a.play()
@@ -44,9 +44,9 @@ const createSoundManager = () => {
           a.currentTime = 0;
           a.volume = 1;
         })
-        .catch(() => {});
+        .catch(() => { });
     });
-  
+
     unlocked = true;
   };
 
@@ -54,7 +54,7 @@ const createSoundManager = () => {
     if (!unlocked) return;
     const a = audioMap[k];
     a.currentTime = 0;
-    a.play().catch(() => {});
+    a.play().catch(() => { });
   };
 
   return { play, unlock };
@@ -124,11 +124,8 @@ const getTaskIcon = (title: string) => {
 };
 
 /* REWARDS */
-const rewards = [
-  { key: 'Car', title: '🏎️ Car', cost: 10 },
-  { key: 'Jeep', title: '🚙 Jeep', cost: 20 },
-  { key: 'Trophy', title: '🏆 Trophy', cost: 40 },
-];
+
+const ROOM_SLOTS = 20;
 
 const getRoomLevel = (xp: number) => {
   if (xp > 100) return 3;
@@ -145,16 +142,17 @@ export default function App() {
 
   const [users, setUsers] = useState<any[]>([]);
   const [state, setState] = useState<Record<string, any>>({});
-
+  const triggeredRef = useRef<Record<string, boolean>>({});
+  const [rewards, setRewards] = useState<any[]>([]);
   /* ✅ KINDNESS (2 jars per kid) */
   const [kindnessJar, setKindnessJar] = useState<Record<string, string[]>>({});
   const [openJar, setOpenJar] = useState<string | null>(null);
   const handleJarClick = (userId: string) => {
     sound.unlock();
-  
+
     engine.jarOpen();   // lid open sound
     setOpenJar(userId);
-  
+
     setTimeout(() => {
       setOpenJar(null);
       engine.jarFill(); // when closing
@@ -166,29 +164,46 @@ export default function App() {
       const { data: usersData } = await supabase.from('users').select('*');
       const { data: tasksData } = await supabase.from('tasks').select('*');
       const today = new Date().toISOString().split('T')[0];
-      const { data: completions } = await supabase.from('task_completions').select('*').eq('date', today);
+
+      // ALL TIME XP
+      const { data: allCompletions } = await supabase
+        .from('task_completions')
+        .select('*');
+
+      // TODAY XP
+      const { data: todayCompletions } = await supabase
+        .from('task_completions')
+        .select('*')
+        .eq('date', today);
       const { data: redeemed } = await supabase.from('reward_redemptions').select('*');
       const { data: rewardsData } = await supabase.from('rewards').select('*');
-
+      setRewards(rewardsData || []);
       setUsers(usersData || []);
-      
+
       const newState: any = {};
       const jarInit: any = {};
-
       (usersData || []).forEach(user => {
         jarInit[user.id] = [];
+        const userRewards =
+          redeemed?.filter(r => r.user_id === user.id) || [];
+        const userCompletions =
+          allCompletions?.filter(c => c.user_id === user.id) || [];
 
-        const userCompletions = completions?.filter(c => c.user_id === user.id) || [];
-        const userRewards = redeemed?.filter(r => r.user_id === user.id) || [];
+        const userTodayCompletions =
+          todayCompletions?.filter(c => c.user_id === user.id) || [];
+
+        const todayXP = userTodayCompletions.length * 10;
+        const totalXP = userCompletions.length * 10;
 
         newState[user.id] = {
-          xp: userCompletions.length * 10,
+          xp: totalXP,
+          todayXP,
           tasks: (tasksData || []).map(t => ({
             id: t.id,
             icon: getTaskIcon(t.title),
             text: t.title,
             description: t.description || 'MORN',
-            done: userCompletions.some(c => c.task_id === t.id),
+            done: userTodayCompletions.some(c => c.task_id === t.id),
           })),
           dailyJar: userRewards
             .map(r => rewardsData?.find(x => x.id === r.reward_id)?.title)
@@ -214,12 +229,17 @@ export default function App() {
       const updated = prev[user.id].tasks.map((t: any) =>
         t.id === taskId ? { ...t, done: !t.done } : t
       );
+      const todayXP =
+        updated.filter((t: any) => t.done).length * 10;
 
+      const xp =
+        updated.filter((t: any) => t.done).length * 10;
       return {
         ...prev,
         [user.id]: {
           ...prev[user.id],
           tasks: updated,
+          todayXP,
           xp: prev[user.id].xp + (isDone ? -10 : 10),
         },
       };
@@ -229,6 +249,7 @@ export default function App() {
       await supabase.from('task_completions').insert({
         user_id: user.id,
         task_id: taskId,
+        completed: 'TRUE'
       });
     } else {
       await supabase
@@ -241,39 +262,73 @@ export default function App() {
 
   /* ================= REWARD ================= */
   const buyReward = async (user: any, item: any) => {
-    const { data: reward } = await supabase
-      .from('rewards')
-      .select('*')
-      .eq('title', item.key)
-      .single();
-
-    if (!reward) return;
+    if (!item) return;
 
     setState(prev => {
       const kid = prev[user.id];
-      if (kid.xp < reward.points_required) return prev;
+      if (kid.xp < item.points_required) return prev;
 
       engine.reward();
       confetti();
-      if (item.title.includes('Car')) moveCar(); 
-      if (item.title.includes('Jeep')) balloonEffect(); 
-      if (item.title.includes('Trophy')) trophyDance();
+
       return {
         ...prev,
         [user.id]: {
           ...kid,
-          xp: kid.xp - reward.points_required,
-          dailyJar: [...kid.dailyJar, reward.title],
+          xp: kid.xp - item.points_required,
+          dailyJar: [...kid.dailyJar, item.title],
         },
       };
     });
 
     await supabase.from('reward_redemptions').insert({
       user_id: user.id,
-      reward_id: reward.id,
-      points_spent: reward.points_required,
+      reward_id: item.id,
+      points_spent: item.points_required,
     });
   };
+
+  /*-----------Reward <room----></room----*/
+  const getRoomColor = (gender: string) => {
+    if (gender === 'girl') {
+      return {
+        background: 'linear-gradient(180deg, #ffe0f0, #ffd6ec)',
+        border: '2px solid #ff6bcb',
+      };
+    }
+
+    return {
+      background: 'linear-gradient(180deg, #d6ecff, #b3d9ff)',
+      border: '2px solid #4dabf7',
+    };
+  };
+  const getRewardIcon = (title: string) => {
+    const t = title.toLowerCase();
+
+    if (t.includes('car')) return '🚗';
+    if (t.includes('jeep')) return '🚙';
+    if (t.includes('trophy')) return '🏆';
+
+    return '🎁'; // default
+  };
+  const roomStyle = (gender: string): React.CSSProperties => ({
+    display: 'grid',
+    gridTemplateColumns: 'repeat(8, 1fr)',
+    gap: 10,
+
+    width: '100%',
+    maxWidth: 360,
+    margin: '0 auto',
+
+    padding: 12,
+    borderRadius: 16,
+
+    alignContent: 'start',   // 👈 IMPORTANT (keeps items at top)
+    justifyItems: 'center',
+
+    minHeight: 220,
+    boxSizing: 'border-box',
+  });
 
   /* ================= KINDNESS ADD ================= */
   const addKindness = (userId: string, emoji: string) => {
@@ -293,7 +348,7 @@ export default function App() {
     engine.car();
     const el = document.createElement('div');
     el.innerHTML = '🚗💨';
-  
+
     el.style.position = 'fixed';
     el.style.left = '-80px';
     el.style.top = '45%';
@@ -301,137 +356,137 @@ export default function App() {
     el.style.transition = 'transform 3s cubic-bezier(.2,.8,.2,1)';
     el.style.zIndex = '9999';
     el.style.pointerEvents = 'none';
-  
+
     document.body.appendChild(el);
     el.getBoundingClientRect();
-  
+
     const interval = setInterval(() => {
       const spark = document.createElement('div');
       spark.innerHTML = '✨';
-  
+
       spark.style.position = 'fixed';
       spark.style.left = `${Math.random() * 20}px`;
       spark.style.top = '45%';
       spark.style.fontSize = '18px';
       spark.style.zIndex = '9998';
       spark.style.pointerEvents = 'none';
-  
+
       document.body.appendChild(spark);
-  
+
       setTimeout(() => {
         spark.remove();
       }, 400);
     }, 100);
-  
+
     requestAnimationFrame(() => {
       el.style.transform = 'translateX(120vw) rotate(5deg)';
     });
-  
+
     setTimeout(() => {
       clearInterval(interval);
-  
+
       //sound.play('success');
-  
+
       el.remove();
     }, 3000);
   };
-  
-const balloonEffect = () => {
-  const emojis = ['🎈', '🎉', '✨', '💖', '🌟'];
 
-  for (let i = 0; i < 15; i++) {
-    const el = document.createElement('div');
+  const balloonEffect = () => {
+    const emojis = ['🎈', '🎉', '✨', '💖', '🌟'];
 
-    el.innerHTML = emojis[Math.floor(Math.random() * emojis.length)];
-    el.style.position = 'fixed';
-    el.style.left = Math.random() * 100 + 'vw';
-    el.style.bottom = '-50px';
-    el.style.fontSize = `${20 + Math.random() * 20}px`;
-    el.style.zIndex = '9999';
-    el.style.transition = `transform ${2 + Math.random() * 2}s ease-out, opacity 2s`;
+    for (let i = 0; i < 15; i++) {
+      const el = document.createElement('div');
 
-    document.body.appendChild(el);
+      el.innerHTML = emojis[Math.floor(Math.random() * emojis.length)];
+      el.style.position = 'fixed';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.bottom = '-50px';
+      el.style.fontSize = `${20 + Math.random() * 20}px`;
+      el.style.zIndex = '9999';
+      el.style.transition = `transform ${2 + Math.random() * 2}s ease-out, opacity 2s`;
 
-    requestAnimationFrame(() => {
-      el.style.transform = `
+      document.body.appendChild(el);
+
+      requestAnimationFrame(() => {
+        el.style.transform = `
         translateY(-120vh)
         rotate(${Math.random() * 720}deg)
       `;
-      el.style.opacity = '0';
+        el.style.opacity = '0';
+      });
+
+      setTimeout(() => {
+        document.body.removeChild(el);
+      }, 3000);
+    }
+  };
+
+  const trophyDance = () => {
+    const el = document.createElement('div');
+    el.innerHTML = '🏆 WOW';
+
+    el.style.position = 'fixed';
+    el.style.top = '50%';
+    el.style.left = '50%';
+    el.style.transform = 'translate(-50%, -50%) scale(0.3)';
+    el.style.fontSize = '70px';
+    el.style.fontWeight = 'bold';
+    el.style.color = '#ffd700';
+    el.style.textShadow = '0 0 25px #ffd700, 0 0 50px #ffea00';
+    el.style.zIndex = '9999';
+    el.style.transition = 'all 0.6s cubic-bezier(.2,1.5,.3,1)';
+    el.style.pointerEvents = 'none';
+
+    document.body.appendChild(el);
+
+    // 🌟 GOLD FLASH BACKGROUND
+    const flash = document.createElement('div');
+    flash.style.position = 'fixed';
+    flash.style.inset = '0';
+    flash.style.background = 'radial-gradient(circle, rgba(255,215,0,0.6), rgba(0,0,0,0.3))';
+    flash.style.opacity = '0';
+    flash.style.zIndex = '9998';
+    flash.style.transition = 'opacity 0.3s ease';
+    document.body.appendChild(flash);
+
+    // 🎆 CONFETTI BURST
+    import('canvas-confetti').then(({ default: confetti }) => {
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+      });
+    });
+
+    // ⚡ SCREEN SHAKE (light)
+    document.body.style.transform = 'translateX(2px)';
+    setTimeout(() => {
+      document.body.style.transform = 'translateX(-2px)';
+    }, 50);
+    setTimeout(() => {
+      document.body.style.transform = 'translateX(0px)';
+    }, 120);
+
+    requestAnimationFrame(() => {
+      el.style.transform = 'translate(-50%, -50%) scale(1.4)';
+      flash.style.opacity = '1';
     });
 
     setTimeout(() => {
+      el.style.transform = 'translate(-50%, -50%) scale(1)';
+      flash.style.opacity = '0';
+    }, 400);
+
+    setTimeout(() => {
+      el.style.transform = 'translate(-50%, -50%) scale(0.8)';
+      flash.style.opacity = '0';
+    }, 900);
+
+    setTimeout(() => {
       document.body.removeChild(el);
-    }, 3000);
-  }
-};
-
-const trophyDance = () => {
-  const el = document.createElement('div');
-  el.innerHTML = '🏆 WOW';
-
-  el.style.position = 'fixed';
-  el.style.top = '50%';
-  el.style.left = '50%';
-  el.style.transform = 'translate(-50%, -50%) scale(0.3)';
-  el.style.fontSize = '70px';
-  el.style.fontWeight = 'bold';
-  el.style.color = '#ffd700';
-  el.style.textShadow = '0 0 25px #ffd700, 0 0 50px #ffea00';
-  el.style.zIndex = '9999';
-  el.style.transition = 'all 0.6s cubic-bezier(.2,1.5,.3,1)';
-  el.style.pointerEvents = 'none';
-
-  document.body.appendChild(el);
-
-  // 🌟 GOLD FLASH BACKGROUND
-  const flash = document.createElement('div');
-  flash.style.position = 'fixed';
-  flash.style.inset = '0';
-  flash.style.background = 'radial-gradient(circle, rgba(255,215,0,0.6), rgba(0,0,0,0.3))';
-  flash.style.opacity = '0';
-  flash.style.zIndex = '9998';
-  flash.style.transition = 'opacity 0.3s ease';
-  document.body.appendChild(flash);
-
-  // 🎆 CONFETTI BURST
-  import('canvas-confetti').then(({ default: confetti }) => {
-    confetti({
-      particleCount: 120,
-      spread: 80,
-      origin: { y: 0.6 },
-    });
-  });
-
-  // ⚡ SCREEN SHAKE (light)
-  document.body.style.transform = 'translateX(2px)';
-  setTimeout(() => {
-    document.body.style.transform = 'translateX(-2px)';
-  }, 50);
-  setTimeout(() => {
-    document.body.style.transform = 'translateX(0px)';
-  }, 120);
-
-  requestAnimationFrame(() => {
-    el.style.transform = 'translate(-50%, -50%) scale(1.4)';
-    flash.style.opacity = '1';
-  });
-
-  setTimeout(() => {
-    el.style.transform = 'translate(-50%, -50%) scale(1)';
-    flash.style.opacity = '0';
-  }, 400);
-
-  setTimeout(() => {
-    el.style.transform = 'translate(-50%, -50%) scale(0.8)';
-    flash.style.opacity = '0';
-  }, 900);
-
-  setTimeout(() => {
-    document.body.removeChild(el);
-    document.body.removeChild(flash);
-  }, 1300);
-};
+      document.body.removeChild(flash);
+    }, 1300);
+  };
   const visibleCategories = ROUTINE[timeSlot];
   const getItemStyle = (i: number): React.CSSProperties => ({
     position: 'absolute',
@@ -443,30 +498,62 @@ const trophyDance = () => {
 
   return (
     <div style={container} onClick={() => sound.unlock()}>
-      <h1>ToDo Game</h1>
-
-      <select value={timeSlot} onChange={(e) => setTimeSlot(e.target.value as TimeSlot)}>
-        {timeSlots.map(t => <option key={t}>{t}</option>)}
-      </select>
-
-      <button style={btn} onClick={() => setPage(page === 'game' ? 'kindness' : 'game')}>
-        ❤️ Kindness Page
-      </button>
 
       {/* ================= GAME ================= */}
-      {page === 'game' && (
+      {page === 'game' && (<>
+        <h1>ToDo Game</h1>
+
+        <select value={timeSlot} onChange={(e) => setTimeSlot(e.target.value as TimeSlot)}>
+          {timeSlots.map(t => <option key={t}>{t}</option>)}
+        </select>
+        <button style={btn} onClick={() => setPage(page === 'game' ? 'kindness' : 'game')}>
+        ❤️ Kindness Page
+      </button>
         <div style={{ display: 'flex', gap: 20 }}>
           {users.map(u => (
             <div key={u.id} style={card}>
-              <h2 style={{
-                background: u.gender === 'girl' ? '#ff6bcb' : '#4dabf7',
-                color: 'white',
-                padding: '6px 12px',
-                borderRadius: '12px',
-                display: 'inline-block',
-              }}>
-                {u.name}
-              </h2>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 10,
+                }}
+              >
+                {/* LEFT (empty spacer for balance) */}
+                <div style={{ width: 80 }} />
+
+                {/* CENTER NAME */}
+                <h2
+                  style={{
+                    background: u.gender === 'girl' ? '#ff6bcb' : '#4dabf7',
+                    color: 'white',
+                    padding: '6px 12px',
+                    borderRadius: '12px',
+                    margin: 0,
+                    textAlign: 'center',
+                  }}
+                >
+                  {u.name}
+                </h2>
+
+                {/* RIGHT STATS */}
+                <div
+                  style={{
+                    fontSize: 12,
+                    background: '#fff',
+                    padding: '6px 10px',
+                    borderRadius: 10,
+                    background: 'rgba(0,0,0,0.85)',
+                    border: '1px solid #444',
+                    textAlign: 'left',
+                    minWidth: 80,
+                  }}
+                >
+                  <div>⭐ Total: {state[u.id]?.xp || 0}</div>
+                  <div>🔥 Today: {state[u.id]?.todayXP || 0}</div>
+                </div>
+              </div>
 
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {(state[u.id]?.tasks || [])
@@ -474,9 +561,11 @@ const trophyDance = () => {
                   .map((t: any) => (
                     <button
                       key={t.id}
-                      onClick={() =>   {sound.unlock();
-                        engine.click();   
-                        confetti();toggleTask(u, t.id)}}
+                      onClick={() => {
+                        sound.unlock();
+                        engine.click();
+                        confetti(); toggleTask(u, t.id)
+                      }}
                       style={{
                         ...btn,
                         background: t.done ? '#b2f7ef' : '#ffe5ec',
@@ -488,82 +577,91 @@ const trophyDance = () => {
                   ))}
               </div>
 
-              <h3>🎁 Rewards</h3>
-              {rewards.map(r => (
-                <button key={r.key} onClick={() => buyReward(u, r)}>
-                  {r.title} ({r.cost})
-                </button>
-              ))}
+              <h3 style={{ textAlign: 'center' }}>🎁 Rewards</h3>
 
-<h4>🏡 My Room</h4>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: 10,
+                  flexWrap: 'nowrap',
+                }}
+              >
+                {rewards.map((r, i) => (
+                  <button
+                    key={r.id}
+                    onClick={() => buyReward(u, r)}
+                    style={{
+                      ...btn,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span>{getRewardIcon(r.title)}</span>
+                    <span>{r.title.toUpperCase()}</span>
+                    <span>({r.points_required})</span>
 
-<div style={houseContainer}>
-  <div style={houseRoof} />
+                    {i < rewards.length - 1 && (
+                      <span style={{ marginLeft: 6, opacity: 0.6 }}>.</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <h4>🏡 My Room</h4>
 
-  <div style={houseRoom}>
-    {/* TOP AREA */}
-    <div style={row}>
-      {(state[u.id]?.dailyJar || [])
-        .filter(r => r.includes('Trophy'))
-        .map((r, i) => (
-          <span key={i} style={item}>
-            🏆
-          </span>
-        ))}
-    </div>
+              <div style={houseRoof} />
 
-    {/* MIDDLE AREA */}
-    <div style={row}>
-      {(state[u.id]?.dailyJar || [])
-        .filter(r => r.includes('Car'))
-        .map((r, i) => (
-          <span key={i} style={item}>
-            🚗
-          </span>
-        ))}
-    </div>
+              <div
+                style={{
+                  ...roomStyle(u.gender),
+                  ...getRoomColor(u.gender),
+                }}
+              >
+                {(state[u.id]?.dailyJar || [])
+                  .slice(0, ROOM_SLOTS)
+                  .map((r, i) => (
+                    <span key={i} style={{ fontSize: 28 }}>
+                      {r.includes('Car') ? '🚗' :
+                        r.includes('Trophy') ? '🏆' : '🎁'}
+                    </span>
+                  ))}
+              </div>
 
-    {/* BOTTOM AREA */}
-    <div style={row}>
-      {(state[u.id]?.dailyJar || [])
-        .filter(r => !r.includes('Car') && !r.includes('Trophy'))
-        .map((r, i) => (
-          <span key={i} style={item}>
-            🎁
-          </span>
-        ))}
-    </div>
-  </div>
-</div>
             </div>
           ))}
         </div>
+        </>
       )}
 
       {/* ================= KINDNESS PAGE (2 JARS) ================= */}
-      {page === 'kindness' && (
+      {page === 'kindness' && 
+      (<>
+            <button style={btn} onClick={() => setPage(page === 'game' ? 'kindness' : 'game')}>
+        ❤️ Kindness Jar
+      </button>
         <div style={{ padding: 20, textAlign: 'center' }}>
-          <h2>💖 Kindness Hearts</h2>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 40 }}>
 
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 40 }}>
-            
             {users.map(u => (
               <div key={u.id} style={{ textAlign: 'center' }}>
-                
+
                 <h3>{u.name}</h3>
 
                 {/* ❤️ HEART JAR */}
-                
+
                 <div style={jarStyle} onClick={() => handleJarClick(u.id)}>
-  
+
                   {/* LID */}
                   <div
-                      key={openJar === u.id ? 'open' : 'closed'}  // 👈 IMPORTANT
-                      style={{
-                        ...jarLid,
-                        animation: openJar === u.id ? 'lidOpen 1s forwards' : undefined,
-                      }}
-                    />
+                    key={openJar === u.id ? 'open' : 'closed'}  // 👈 IMPORTANT
+                    style={{
+                      ...jarLid,
+                      animation: openJar === u.id ? 'lidOpen 1s forwards' : undefined,
+                    }}
+                  />
                   <div style={glassShine}></div>
                   {(kindnessJar[u.id] || []).map((e, i) => (
                     <span
@@ -591,6 +689,7 @@ const trophyDance = () => {
 
           </div>
         </div>
+        </>
       )}
     </div>
   );
@@ -598,8 +697,12 @@ const trophyDance = () => {
 
 /* STYLES (UNCHANGED) */
 const container: React.CSSProperties = {
-  minHeight: '100vh',
-  padding: 10,
+  minHeight: '100%',
+  width: '100%',
+  padding: 15,
+  //boxSizing: 'border-box', // 👈 VERY IMPORTANT
+
+  overflowX: 'hidden',
   background: 'linear-gradient(135deg,#ff9a9e,#a1c4fd,#84fab0)',
 };
 
@@ -682,12 +785,6 @@ const glassShine: React.CSSProperties = {
   borderRadius: '50%',
   filter: 'blur(10px)',
 };
-const houseContainer: React.CSSProperties = {
-  width: '100%',
-  maxWidth: 340,
-  margin: '0 auto',
-  position: 'relative',
-};
 
 const houseRoof: React.CSSProperties = {
   width: 0,
@@ -697,29 +794,10 @@ const houseRoof: React.CSSProperties = {
   // 👇 correct responsive trick
   borderLeft: '170px solid transparent',
   borderRight: '170px solid transparent',
-  borderBottom: '90px solid #ffb3c6',
+  borderBottom: '90px solid #a0522d',
 
   position: 'relative',
   top: 0,
-};
-
-const houseRoom: React.CSSProperties = {
-  width: '100%',
-  height: 260,
-
-  background: 'linear-gradient(to bottom, #ffffff, #e6f2ff)',
-  border: '3px solid #74c0fc',
-  borderTop: 'none',
-
-  borderRadius: '0 0 16px 16px',
-  boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'space-around',
-  padding: 10,
-
-  boxSizing: 'border-box',
 };
 
 const row: React.CSSProperties = {

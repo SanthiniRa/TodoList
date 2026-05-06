@@ -139,7 +139,7 @@ export default function App() {
 
   const [page, setPage] = useState<'game' | 'kindness'>('game');
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('morning');
-
+  const [stickers, setStickers] = useState<Record<string, boolean>>({});
   const [users, setUsers] = useState<any[]>([]);
   const [state, setState] = useState<Record<string, any>>({});
   const triggeredRef = useRef<Record<string, boolean>>({});
@@ -179,7 +179,19 @@ export default function App() {
       const { data: rewardsData } = await supabase.from('rewards').select('*');
       setRewards(rewardsData || []);
       setUsers(usersData || []);
+      const stickerState: any = {};
 
+(usersData || []).forEach(user => {
+  const completed = hasCompletedAllTasksThisWeek(
+    user.id,
+    tasksData || [],
+    allCompletions || []
+  );
+
+  stickerState[user.id] = completed;
+});
+
+setStickers(stickerState);
       const newState: any = {};
       const jarInit: any = {};
       (usersData || []).forEach(user => {
@@ -262,8 +274,24 @@ export default function App() {
 
   /* ================= REWARD ================= */
   const buyReward = async (user: any, item: any) => {
+    sound.unlock(); // keep this
     if (!item) return;
-
+    if (item.title.toLowerCase().includes('car')) {
+      moveCar(); // 🚙 special animation
+    }
+    if (item.title.toLowerCase().includes('jeep')) {
+      jeepAudio.currentTime = 0;
+      jeepAudio.play().catch(err => console.log(err));
+      jeepRideEffect();
+  
+      setTimeout(() => {
+        jeepAudio.pause();
+        jeepAudio.currentTime = 0;
+      }, 9000);
+    }
+    if (item.title.toLowerCase().includes('trophy')) {
+      trophyDance(); // 🚙 special animation
+    }
     setState(prev => {
       const kid = prev[user.id];
       if (kid.xp < item.points_required) return prev;
@@ -341,6 +369,25 @@ export default function App() {
     confetti();
   };
 
+  /*Sticker Helper*/ 
+  const hasCompletedAllTasksThisWeek = (userId: string, tasks: any[], completions: any[]) => {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - 6);
+  
+    const weekCompletions = completions.filter(c => {
+      const date = new Date(c.created_at || c.date);
+      return c.user_id === userId && date >= startOfWeek;
+    });
+  
+    const taskIds = tasks.map(t => t.id);
+  
+    // check if every task was completed at least once this week
+    return taskIds.every(taskId =>
+      weekCompletions.some(c => c.task_id === taskId)
+    );
+  };
+
   const moveCar = () => {
     sound.unlock();
     //sound.play('car');
@@ -389,6 +436,73 @@ export default function App() {
 
       el.remove();
     }, 3000);
+  };
+
+  const playJeepSound = () => {
+    const jeepAudio = new Audio('/sounds/monster-truck.mp3');
+  
+    jeepAudio.loop = true;
+    jeepAudio.volume = 0.4;
+  
+    jeepAudio.play().catch(() => {});
+  
+    // stop after ride
+    setTimeout(() => {
+      jeepAudio.pause();
+      jeepAudio.currentTime = 0;
+    }, 9000);
+  };
+  const jeepRideEffect = () => {
+    playJeepSound(); // 🔊 improved sound (see below)
+  
+    const el = document.createElement('div');
+    el.innerHTML = '🚙💨';
+  
+    el.style.position = 'fixed';
+    el.style.left = '0px';
+    el.style.top = '60%';
+    el.style.fontSize = '60px';
+    el.style.zIndex = '9999';
+    el.style.pointerEvents = 'none';
+  
+    // ✅ flip once ONLY (faces forward correctly)
+    el.style.transform = 'scaleX(-1)';
+  
+    document.body.appendChild(el);
+  
+    const duration = 9000;
+    const start = performance.now();
+    const screenWidth = window.innerWidth;
+  
+    const animate = (time: number) => {
+      const t = time - start;
+      const progress = t / duration;
+  
+      if (progress >= 1) {
+        el.remove();
+        return;
+      }
+  
+      // 👉 forward movement ONLY here
+      const x = progress * (screenWidth + 200);
+  
+      // 🪨 strong bumpy suspension
+      const bounce = Math.sin(t / 90) * 22;
+  
+      // 🚙 body shake
+      const tilt = Math.sin(t / 140) * 3;
+  
+      el.style.transform = `
+        translateX(${x}px)
+        translateY(${bounce}px)
+        rotate(${tilt}deg)
+        scaleX(-1)
+      `;
+  
+      requestAnimationFrame(animate);
+    };
+  
+    requestAnimationFrame(animate);
   };
 
   const balloonEffect = () => {
@@ -624,8 +738,9 @@ export default function App() {
                   .slice(0, ROOM_SLOTS)
                   .map((r, i) => (
                     <span key={i} style={{ fontSize: 28 }}>
-                      {r.includes('Car') ? '🚗' :
-                        r.includes('Trophy') ? '🏆' : '🎁'}
+                      {r.toLowerCase().includes('car') ? '🚗' :
+r.toLowerCase().includes('jeep') ? '🚙' :
+r.toLowerCase().includes('trophy') ? '🏆' : '🎁'}
                     </span>
                   ))}
               </div>
@@ -683,13 +798,41 @@ export default function App() {
                   <button style={btn} onClick={() => addKindness(u.id, '🌟')}>🌟</button>
                   <button style={btn} onClick={() => addKindness(u.id, '😊')}>😊</button>
                 </div>
+                <div style={{ marginTop: 20, textAlign: 'center' }}>
+
+<h4>📘 Sticker Book</h4>
+
+<div style={{
+  width: 120,
+  height: 80,
+  margin: '0 auto',
+  borderRadius: 10,
+  background: '#fff3cd',
+  border: '2px solid #f7c948',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 30
+}}>
+  {stickers[u.id] ? '🎖️' : '🔒'}
+</div>
+
+<div style={{ fontSize: 12, marginTop: 5 }}>
+  {stickers[u.id] ? 'Weekly Reward Unlocked' : 'Complete all tasks this week'}
+</div>
+
+</div>
+
 
               </div>
+              
             ))}
 
           </div>
         </div>
         </>
+
+        
       )}
     </div>
   );

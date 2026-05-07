@@ -9,42 +9,40 @@ type SoundKey =
   | 'success'
   | 'reward'
   | 'jarOpen'
+  | 'jeep'
   | 'jarFill';
 
-const SOUND_SRC = {
-  click: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg',
-  car: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg',
-  success: 'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg',
-  reward: 'https://actions.google.com/sounds/v1/crowds/applause.ogg',
-  jarOpen: 'https://actions.google.com/sounds/v1/impacts/wood_plank_flicks.ogg',
-  jarFill: 'https://actions.google.com/sounds/v1/cartoon/boing.ogg',
+const SOUND_SRC: Record<SoundKey, string> = {
+  click: '/sounds/click.mp3',
+  car: '/sounds/speeding-swoosh.wav',
+  success: '/sounds/clap.wav',
+  reward: '/sounds/huge-crowd-cheering-victory.wav',
+  jarOpen: '/sounds/huge-crowd-cheering-victory.wav',
+  jeep: '/sounds/engine-motor-hum.wav',
+  jarFill: '/sounds/jar-fill.mp3',
 };
-
+let jeepAudio: HTMLAudioElement | null = null;
 const createSoundManager = () => {
   let unlocked = false;
 
-  const audioMap: Record<SoundKey, HTMLAudioElement> = {
-    click: new Audio(SOUND_SRC.click),
-    success: new Audio(SOUND_SRC.success),
-    car: new Audio(SOUND_SRC.car),
-    reward: new Audio(SOUND_SRC.reward),
-    jarOpen: new Audio(SOUND_SRC.jarOpen),
-    jarFill: new Audio(SOUND_SRC.jarFill),
-  };
+  const audioMap: Record<SoundKey, HTMLAudioElement> = {} as any;
 
+  Object.keys(SOUND_SRC).forEach((key) => {
+    const k = key as SoundKey;
+    const audio = new Audio(SOUND_SRC[k]);
+    audio.preload = 'auto';
+    audio.volume = 1;
+    audioMap[k] = audio;
+  });
 
   const unlock = () => {
     if (unlocked) return;
 
     Object.values(audioMap).forEach(a => {
-      a.volume = 0;
-      a.play()
-        .then(() => {
-          a.pause();
-          a.currentTime = 0;
-          a.volume = 1;
-        })
-        .catch(() => { });
+      a.play().then(() => {
+        a.pause();
+        a.currentTime = 0;
+      }).catch(() => {});
     });
 
     unlocked = true;
@@ -52,9 +50,12 @@ const createSoundManager = () => {
 
   const play = (k: SoundKey) => {
     if (!unlocked) return;
-    const a = audioMap[k];
-    a.currentTime = 0;
-    a.play().catch(() => { });
+
+    const audio = audioMap[k];
+    if (!audio) return;
+
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
   };
 
   return { play, unlock };
@@ -66,6 +67,7 @@ const createSoundEngine = (s: any) => ({
   reward: () => s.play('reward'),
   car: () => s.play('car'),
   jarFill: () => s.play('jarFill'),
+  jeep: () => s.play('jeep'),
   jarOpen: () => s.play('jarOpen'),
 });
 
@@ -155,7 +157,7 @@ export default function App() {
 
     setTimeout(() => {
       setOpenJar(null);
-      engine.jarFill(); // when closing
+      engine.success(); // when closing
     }, 1200);
   };
   /* ================= LOAD ================= */
@@ -164,7 +166,7 @@ export default function App() {
       const { data: usersData } = await supabase.from('users').select('*');
       const { data: tasksData } = await supabase.from('tasks').select('*');
       const today = new Date().toISOString().split('T')[0];
-
+      
       // ALL TIME XP
       const { data: allCompletions } = await supabase
         .from('task_completions')
@@ -190,12 +192,11 @@ export default function App() {
 
   stickerState[user.id] = completed;
 });
-
-setStickers(stickerState);
+      setStickers(stickerState);
       const newState: any = {};
       const jarInit: any = {};
       (usersData || []).forEach(user => {
-        jarInit[user.id] = [];
+        jarInit[user.id] = user.emoji || [];
         const userRewards =
           redeemed?.filter(r => r.user_id === user.id) || [];
         const userCompletions =
@@ -228,6 +229,41 @@ setStickers(stickerState);
     };
 
     load();
+  }, []);
+
+  useEffect(() => {
+    const style = document.createElement('style');
+  
+    style.innerHTML = `
+      @keyframes lidOpen {
+        0% {
+          transform: translateX(-50%) rotate(0deg) translateY(0px);
+        }
+        40% {
+          transform: translateX(-50%) rotate(-18deg) translateY(-12px);
+        }
+        100% {
+          transform: translateX(-50%) rotate(0deg) translateY(0px);
+        }
+      }
+  
+      @keyframes pop {
+        0% {
+          transform: scale(0.2);
+          opacity: 0;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+    `;
+  
+    document.head.appendChild(style);
+  
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   /* ================= TASK ================= */
@@ -280,13 +316,9 @@ setStickers(stickerState);
       moveCar(); // 🚙 special animation
     }
     if (item.title.toLowerCase().includes('jeep')) {
-      jeepAudio.currentTime = 0;
-      jeepAudio.play().catch(err => console.log(err));
       jeepRideEffect();
   
       setTimeout(() => {
-        jeepAudio.pause();
-        jeepAudio.currentTime = 0;
       }, 9000);
     }
     if (item.title.toLowerCase().includes('trophy')) {
@@ -296,7 +328,6 @@ setStickers(stickerState);
       const kid = prev[user.id];
       if (kid.xp < item.points_required) return prev;
 
-      engine.reward();
       confetti();
 
       return {
@@ -359,14 +390,57 @@ setStickers(stickerState);
   });
 
   /* ================= KINDNESS ADD ================= */
-  const addKindness = (userId: string, emoji: string) => {
-    setKindnessJar(prev => ({
-      ...prev,
-      [userId]: [...(prev[userId] || []), emoji],
-    }));
-
-    // small animation
-    confetti();
+  const addKindness = async (userId: string, emoji: string) => {
+    sound.unlock();
+  
+    // OPEN JAR
+    setOpenJar(userId);
+  
+    // SOUND
+    engine.jarOpen();
+  
+    // CURRENT VALUES
+    const currentJar = kindnessJar[userId] || [];
+  
+    // NEW VALUES
+    const updatedJar = [...currentJar, emoji];
+  
+    setTimeout(async () => {
+  
+      // UI UPDATE
+      setKindnessJar(prev => ({
+        ...prev,
+        [userId]: updatedJar,
+      }));
+  
+      // SAVE TO DB
+      await supabase
+        .from('users')
+        .update({
+          emoji: updatedJar,
+        })
+        .eq('id', userId);
+  
+      // SOUND
+      engine.jarFill();
+  
+      // CONFETTI
+      confetti({
+        particleCount: 40,
+        spread: 60,
+        origin: { y: 0.7 },
+      });
+  
+      // BALLOONS
+      balloonEffect();
+  
+    }, 350);
+  
+    // CLOSE JAR
+    setTimeout(() => {
+      engine.j();
+      setOpenJar(null);
+    }, 1400);
   };
 
   /*Sticker Helper*/ 
@@ -390,7 +464,7 @@ setStickers(stickerState);
 
   const moveCar = () => {
     sound.unlock();
-    //sound.play('car');
+    sound.play('car');
     //playEngineSound();
     engine.car();
     const el = document.createElement('div');
@@ -438,23 +512,7 @@ setStickers(stickerState);
     }, 3000);
   };
 
-  const playJeepSound = () => {
-    const jeepAudio = new Audio('/sounds/monster-truck.mp3');
-  
-    jeepAudio.loop = true;
-    jeepAudio.volume = 0.4;
-  
-    jeepAudio.play().catch(() => {});
-  
-    // stop after ride
-    setTimeout(() => {
-      jeepAudio.pause();
-      jeepAudio.currentTime = 0;
-    }, 9000);
-  };
   const jeepRideEffect = () => {
-    playJeepSound(); // 🔊 improved sound (see below)
-  
     const el = document.createElement('div');
     el.innerHTML = '🚙💨';
   
@@ -464,8 +522,6 @@ setStickers(stickerState);
     el.style.fontSize = '60px';
     el.style.zIndex = '9999';
     el.style.pointerEvents = 'none';
-  
-    // ✅ flip once ONLY (faces forward correctly)
     el.style.transform = 'scaleX(-1)';
   
     document.body.appendChild(el);
@@ -474,22 +530,41 @@ setStickers(stickerState);
     const start = performance.now();
     const screenWidth = window.innerWidth;
   
+    // ✅ proper scoped audio
+    const jeepAudio = new Audio('/sounds/engine-motor-hum.wav');
+    jeepAudio.loop = true;
+    jeepAudio.volume = 0.4;
+  
+    jeepAudio.play().catch(() => {});
+  
+    let stopped = false;
+  
+    const stopAll = () => {
+      if (stopped) return;
+      stopped = true;
+  
+      // stop sound
+      jeepAudio.pause();
+      jeepAudio.currentTime = 0;
+  
+      // remove element
+      el.remove();
+    };
+  
     const animate = (time: number) => {
+      if (stopped) return;
+  
       const t = time - start;
       const progress = t / duration;
   
+      // ✅ stop condition
       if (progress >= 1) {
-        el.remove();
+        stopAll();
         return;
       }
   
-      // 👉 forward movement ONLY here
       const x = progress * (screenWidth + 200);
-  
-      // 🪨 strong bumpy suspension
       const bounce = Math.sin(t / 90) * 22;
-  
-      // 🚙 body shake
       const tilt = Math.sin(t / 140) * 3;
   
       el.style.transform = `
@@ -503,7 +578,11 @@ setStickers(stickerState);
     };
   
     requestAnimationFrame(animate);
+  
+    // safety fallback
+    setTimeout(stopAll, duration + 200);
   };
+
 
   const balloonEffect = () => {
     const emojis = ['🎈', '🎉', '✨', '💖', '🌟'];
@@ -571,7 +650,16 @@ setStickers(stickerState);
         origin: { y: 0.6 },
       });
     });
+    sound.unlock();
 
+    let played = false;
+    
+    const playSound = () => {
+      if (played) return;
+      played = true;
+      sound.play('reward');
+    };
+    
     // ⚡ SCREEN SHAKE (light)
     document.body.style.transform = 'translateX(2px)';
     setTimeout(() => {
@@ -584,6 +672,7 @@ setStickers(stickerState);
     requestAnimationFrame(() => {
       el.style.transform = 'translate(-50%, -50%) scale(1.4)';
       flash.style.opacity = '1';
+      setTimeout(playSound, 120); 
     });
 
     setTimeout(() => {
@@ -767,16 +856,17 @@ r.toLowerCase().includes('trophy') ? '🏆' : '🎁'}
 
                 {/* ❤️ HEART JAR */}
 
-                <div style={jarStyle} onClick={() => handleJarClick(u.id)}>
+                <div style={jarStyle}>
 
                   {/* LID */}
-                  <div
-                    key={openJar === u.id ? 'open' : 'closed'}  // 👈 IMPORTANT
+                                    <div
                     style={{
                       ...jarLid,
-                      animation: openJar === u.id ? 'lidOpen 1s forwards' : undefined,
+                      animation: openJar === u.id
+                        ? 'lidOpen 1.1s ease'
+                        : undefined,
                     }}
-                  />
+/>
                   <div style={glassShine}></div>
                   {(kindnessJar[u.id] || []).map((e, i) => (
                     <span

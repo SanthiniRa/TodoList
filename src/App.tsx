@@ -436,6 +436,7 @@ export default function App() {
     setTimeout(() => {
       //engine.reward();
       setOpenJar(null);
+      balloonEffect();
     }, 1400);
   };
 
@@ -790,7 +791,7 @@ export default function App() {
                     <button
                       key={t.id}
                       onClick={() => {
-                        //sound.unlock();
+                        sound.unlock();
                         engine.click();
                         confetti(); toggleTask(u, t.id)
                       }}

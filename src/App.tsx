@@ -21,7 +21,7 @@ const SOUND_SRC: Record<SoundKey, string> = {
   jeep: '/sounds/engine-motor-hum.wav',
   jarFill: '/sounds/jar-fill.mp3',
 };
-let jeepAudio: HTMLAudioElement | null = null;
+
 const createSoundManager = () => {
   let unlocked = false;
 
@@ -71,32 +71,6 @@ const createSoundEngine = (s: any) => ({
   jarOpen: () => s.play('jarOpen'),
 });
 
-const playEngineSound = () => {
-  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-  const ctx = new AudioContext();
-
-  const oscillator = ctx.createOscillator();
-  const gain = ctx.createGain();
-
-  oscillator.type = 'sawtooth';
-  oscillator.frequency.setValueAtTime(120, ctx.currentTime);
-
-  gain.gain.setValueAtTime(0.2, ctx.currentTime);
-
-  oscillator.connect(gain);
-  gain.connect(ctx.destination);
-
-  oscillator.start();
-
-  // rising “engine rev”
-  oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 1.2);
-
-  // stop
-  setTimeout(() => {
-    oscillator.stop();
-    ctx.close();
-  }, 1200);
-};
 
 /* TIME */
 const timeSlots = ['morning', 'afternoon', 'evening', 'night'] as const;
@@ -127,13 +101,8 @@ const getTaskIcon = (title: string) => {
 
 /* REWARDS */
 
-const ROOM_SLOTS = 20;
+const ROOM_SLOTS = 40;
 
-const getRoomLevel = (xp: number) => {
-  if (xp > 100) return 3;
-  if (xp > 50) return 2;
-  return 1;
-};
 
 export default function App() {
   const sound = useRef(createSoundManager()).current;
@@ -144,7 +113,6 @@ export default function App() {
   const [stickers, setStickers] = useState<Record<string, boolean>>({});
   const [users, setUsers] = useState<any[]>([]);
   const [state, setState] = useState<Record<string, any>>({});
-  const triggeredRef = useRef<Record<string, boolean>>({});
   const [rewards, setRewards] = useState<any[]>([]);
   const [session, setSession] = useState<any>(null);
   /* ✅ KINDNESS (2 jars per kid) */
@@ -162,17 +130,6 @@ export default function App() {
   
   const signOut = async () => {
     await supabase.auth.signOut();
-  };
-  const handleJarClick = (userId: string) => {
-    sound.unlock();
-
-    engine.jarOpen();   // lid open sound
-    setOpenJar(userId);
-
-    setTimeout(() => {
-      setOpenJar(null);
-      engine.success(); // when closing
-    }, 1200);
   };
 
   const [loading, setLoading] = useState(true);
@@ -477,7 +434,7 @@ export default function App() {
   
     // CLOSE JAR
     setTimeout(() => {
-     engine.sucess();
+     engine.success();
       setOpenJar(null);
     }, 1400);
   };
@@ -811,7 +768,6 @@ export default function App() {
                 <div
                   style={{
                     fontSize: 12,
-                    background: '#fff',
                     padding: '6px 10px',
                     borderRadius: 10,
                     background: 'rgba(0,0,0,0.85)',
@@ -858,7 +814,7 @@ export default function App() {
                   flexWrap: 'nowrap',
                 }}
               >
-                {rewards.map((r, i) => (
+                {rewards.map((r: any, i: number) => (
                   <button
                     key={r.id}
                     onClick={() => buyReward(u, r)}

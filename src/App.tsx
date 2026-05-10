@@ -733,7 +733,9 @@ export default function App() {
         <select value={timeSlot} onChange={(e) => setTimeSlot(e.target.value as TimeSlot)}>
           {timeSlots.map(t => <option key={t}>{t}</option>)}
         </select>
-        <button style={btn} onClick={() => setPage(page === 'game' ? 'kindness' : 'game')}>
+        <button style={btn} onClick={() =>
+          setPage(prev => (prev === 'game' ? 'kindness' : 'game'))
+        }>
           ❤️ Kindness Page
         </button>
         <div style={{ display: 'flex', gap: 20 }}>
@@ -866,7 +868,9 @@ export default function App() {
       {/* ================= KINDNESS PAGE (2 JARS) ================= */}
       {page === 'kindness' &&
         (<>
-          <button style={btn} onClick={() => setPage(page === 'game' ? 'kindness' : 'game')}>
+          <button style={btn} onClick={() =>
+            setPage(prev => (prev === 'game' ? 'kindness' : 'game'))
+          }>
             ❤️ Kindness Jar
           </button>
           <div style={{ padding: 20, textAlign: 'center' }}>

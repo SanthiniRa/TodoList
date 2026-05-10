@@ -42,7 +42,7 @@ const createSoundManager = () => {
       a.play().then(() => {
         a.pause();
         a.currentTime = 0;
-      }).catch(() => {});
+      }).catch(() => { });
     });
 
     unlocked = true;
@@ -55,7 +55,7 @@ const createSoundManager = () => {
     if (!audio) return;
 
     audio.currentTime = 0;
-    audio.play().catch(() => {});
+    audio.play().catch(() => { });
   };
 
   return { play, unlock };
@@ -127,7 +127,7 @@ export default function App() {
       },
     });
   };
-  
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -139,19 +139,19 @@ export default function App() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-  
+
       setSession(session);
       setLoading(false);
     };
-  
+
     getInitialSession();
-  
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
-  
+
     return () => {
       subscription.unsubscribe();
     };
@@ -162,7 +162,7 @@ export default function App() {
       const { data: usersData } = await supabase.from('users').select('*');
       const { data: tasksData } = await supabase.from('tasks').select('*');
       const today = new Date().toISOString().split('T')[0];
-      
+
       // ALL TIME XP
       const { data: allCompletions } = await supabase
         .from('task_completions')
@@ -179,15 +179,15 @@ export default function App() {
       setUsers(usersData || []);
       const stickerState: any = {};
 
-(usersData || []).forEach(user => {
-  const completed = hasCompletedAllTasksThisWeek(
-    user.id,
-    tasksData || [],
-    allCompletions || []
-  );
+      (usersData || []).forEach(user => {
+        const completed = hasCompletedAllTasksThisWeek(
+          user.id,
+          tasksData || [],
+          allCompletions || []
+        );
 
-  stickerState[user.id] = completed;
-});
+        stickerState[user.id] = completed;
+      });
       setStickers(stickerState);
       const newState: any = {};
       const jarInit: any = {};
@@ -229,7 +229,7 @@ export default function App() {
 
   useEffect(() => {
     const style = document.createElement('style');
-  
+
     style.innerHTML = `
       @keyframes lidOpen {
         0% {
@@ -254,9 +254,9 @@ export default function App() {
         }
       }
     `;
-  
+
     document.head.appendChild(style);
-  
+
     return () => {
       document.head.removeChild(style);
     };
@@ -313,7 +313,7 @@ export default function App() {
     }
     if (item.title.toLowerCase().includes('jeep')) {
       jeepRideEffect();
-  
+
       setTimeout(() => {
       }, 9000);
     }
@@ -388,27 +388,27 @@ export default function App() {
   /* ================= KINDNESS ADD ================= */
   const addKindness = async (userId: string, emoji: string) => {
     sound.unlock();
-  
+
     // OPEN JAR
     setOpenJar(userId);
-  
+
     // SOUND
     engine.jarOpen();
-  
+
     // CURRENT VALUES
     const currentJar = kindnessJar[userId] || [];
-  
+
     // NEW VALUES
     const updatedJar = [...currentJar, emoji];
-  
+
     setTimeout(async () => {
-  
+
       // UI UPDATE
       setKindnessJar(prev => ({
         ...prev,
         [userId]: updatedJar,
       }));
-  
+
       // SAVE TO DB
       await supabase
         .from('users')
@@ -416,42 +416,42 @@ export default function App() {
           emoji: updatedJar,
         })
         .eq('id', userId);
-  
+
       // SOUND
       engine.jarFill();
-  
+
       // CONFETTI
       confetti({
         particleCount: 40,
         spread: 60,
         origin: { y: 0.7 },
       });
-  
+
       // BALLOONS
       balloonEffect();
-  
+
     }, 350);
-  
+
     // CLOSE JAR
     setTimeout(() => {
-     engine.success();
+      engine.success();
       setOpenJar(null);
     }, 1400);
   };
 
-  /*Sticker Helper*/ 
+  /*Sticker Helper*/
   const hasCompletedAllTasksThisWeek = (userId: string, tasks: any[], completions: any[]) => {
     const today = new Date();
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - 6);
-  
+
     const weekCompletions = completions.filter(c => {
       const date = new Date(c.created_at || c.date);
       return c.user_id === userId && date >= startOfWeek;
     });
-  
+
     const taskIds = tasks.map(t => t.id);
-  
+
     // check if every task was completed at least once this week
     return taskIds.every(taskId =>
       weekCompletions.some(c => c.task_id === taskId)
@@ -511,7 +511,7 @@ export default function App() {
   const jeepRideEffect = () => {
     const el = document.createElement('div');
     el.innerHTML = '🚙💨';
-  
+
     el.style.position = 'fixed';
     el.style.left = '0px';
     el.style.top = '60%';
@@ -519,62 +519,62 @@ export default function App() {
     el.style.zIndex = '9999';
     el.style.pointerEvents = 'none';
     el.style.transform = 'scaleX(-1)';
-  
+
     document.body.appendChild(el);
-  
+
     const duration = 9000;
     const start = performance.now();
     const screenWidth = window.innerWidth;
-  
+
     // ✅ proper scoped audio
     const jeepAudio = new Audio('/sounds/engine-motor-hum.wav');
     jeepAudio.loop = true;
     jeepAudio.volume = 0.4;
-  
-    jeepAudio.play().catch(() => {});
-  
+
+    jeepAudio.play().catch(() => { });
+
     let stopped = false;
-  
+
     const stopAll = () => {
       if (stopped) return;
       stopped = true;
-  
+
       // stop sound
       jeepAudio.pause();
       jeepAudio.currentTime = 0;
-  
+
       // remove element
       el.remove();
     };
-  
+
     const animate = (time: number) => {
       if (stopped) return;
-  
+
       const t = time - start;
       const progress = t / duration;
-  
+
       // ✅ stop condition
       if (progress >= 1) {
         stopAll();
         return;
       }
-  
+
       const x = progress * (screenWidth + 200);
       const bounce = Math.sin(t / 90) * 22;
       const tilt = Math.sin(t / 140) * 3;
-  
+
       el.style.transform = `
         translateX(${x}px)
         translateY(${bounce}px)
         rotate(${tilt}deg)
         scaleX(-1)
       `;
-  
+
       requestAnimationFrame(animate);
     };
-  
+
     requestAnimationFrame(animate);
-  
+
     // safety fallback
     setTimeout(stopAll, duration + 200);
   };
@@ -649,13 +649,13 @@ export default function App() {
     //sound.unlock();
 
     let played = false;
-    
+
     const playSound = () => {
       if (played) return;
       played = true;
       sound.play('reward');
     };
-    
+
     // ⚡ SCREEN SHAKE (light)
     document.body.style.transform = 'translateX(2px)';
     setTimeout(() => {
@@ -668,7 +668,7 @@ export default function App() {
     requestAnimationFrame(() => {
       el.style.transform = 'translate(-50%, -50%) scale(1.4)';
       flash.style.opacity = '1';
-      setTimeout(playSound, 120); 
+      setTimeout(playSound, 120);
     });
 
     setTimeout(() => {
@@ -707,7 +707,7 @@ export default function App() {
       <div style={container}>
         <div style={{ textAlign: 'center', marginTop: 100 }}>
           <h1>Kids Todo Game</h1>
-  
+
           <button style={btn} onClick={signInWithGitHub}>
             Login with GitHub
           </button>
@@ -718,14 +718,14 @@ export default function App() {
   return (
     <div style={container}>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-    <span>{session.user?.email}</span>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span>{session.user?.email}</span>
 
-    <button style={btn} onClick={signOut}>
-      Logout
-    </button>
-  </div>
-</div>
+          <button style={btn} onClick={signOut}>
+            Logout
+          </button>
+        </div>
+      </div>
       {/* ================= GAME ================= */}
       {page === 'game' && (<>
         <h1>ToDo Game</h1>
@@ -734,8 +734,8 @@ export default function App() {
           {timeSlots.map(t => <option key={t}>{t}</option>)}
         </select>
         <button style={btn} onClick={() => setPage(page === 'game' ? 'kindness' : 'game')}>
-        ❤️ Kindness Page
-      </button>
+          ❤️ Kindness Page
+        </button>
         <div style={{ display: 'flex', gap: 20 }}>
           {users.map(u => (
             <div key={u.id} style={card}>
@@ -848,11 +848,11 @@ export default function App() {
               >
                 {(state[u.id]?.dailyJar || [])
                   .slice(0, ROOM_SLOTS)
-                  .map((r, i) => (
+                  .map((r: any, i: number) => (
                     <span key={i} style={{ fontSize: 28 }}>
                       {r.toLowerCase().includes('car') ? '🚗' :
-r.toLowerCase().includes('jeep') ? '🚙' :
-r.toLowerCase().includes('trophy') ? '🏆' : '🎁'}
+                        r.toLowerCase().includes('jeep') ? '🚙' :
+                          r.toLowerCase().includes('trophy') ? '🏆' : '🎁'}
                     </span>
                   ))}
               </div>
@@ -860,93 +860,93 @@ r.toLowerCase().includes('trophy') ? '🏆' : '🎁'}
             </div>
           ))}
         </div>
-        </>
+      </>
       )}
 
       {/* ================= KINDNESS PAGE (2 JARS) ================= */}
-      {page === 'kindness' && 
-      (<>
-            <button style={btn} onClick={() => setPage(page === 'game' ? 'kindness' : 'game')}>
-        ❤️ Kindness Jar
-      </button>
-        <div style={{ padding: 20, textAlign: 'center' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 40 }}>
+      {page === 'kindness' &&
+        (<>
+          <button style={btn} onClick={() => setPage(page === 'game' ? 'kindness' : 'game')}>
+            ❤️ Kindness Jar
+          </button>
+          <div style={{ padding: 20, textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 40 }}>
 
-            {users.map(u => (
-              <div key={u.id} style={{ textAlign: 'center' }}>
+              {users.map(u => (
+                <div key={u.id} style={{ textAlign: 'center' }}>
 
-                <h3>{u.name}</h3>
+                  <h3>{u.name}</h3>
 
-                {/* ❤️ HEART JAR */}
+                  {/* ❤️ HEART JAR */}
 
-                <div style={jarStyle}>
+                  <div style={jarStyle}>
 
-                  {/* LID */}
-                                    <div
-                    style={{
-                      ...jarLid,
-                      animation: openJar === u.id
-                        ? 'lidOpen 1.1s ease'
-                        : undefined,
-                    }}
-/>
-                  <div style={glassShine}></div>
-                  {(kindnessJar[u.id] || []).map((e, i) => (
-                    <span
-                      key={i}
+                    {/* LID */}
+                    <div
                       style={{
-                        fontSize: 26,
-                        animation: 'pop 0.3s ease',
+                        ...jarLid,
+                        animation: openJar === u.id
+                          ? 'lidOpen 1.1s ease'
+                          : undefined,
                       }}
-                    >
-                      {e}
-                    </span>
-                  ))}
+                    />
+                    <div style={glassShine}></div>
+                    {(kindnessJar[u.id] || []).map((e, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          fontSize: 26,
+                          animation: 'pop 0.3s ease',
+                        }}
+                      >
+                        {e}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* BUTTONS */}
+                  <div style={{ marginTop: 10 }}>
+                    <button style={btn} onClick={() => addKindness(u.id, '💖')}>💖</button>
+                    <button style={btn} onClick={() => addKindness(u.id, '🤗')}>🤗</button>
+                    <button style={btn} onClick={() => addKindness(u.id, '🌟')}>🌟</button>
+                    <button style={btn} onClick={() => addKindness(u.id, '😊')}>😊</button>
+                  </div>
+                  <div style={{ marginTop: 20, textAlign: 'center' }}>
+
+                    <h4>📘 Sticker Book</h4>
+
+                    <div style={{
+                      width: 120,
+                      height: 80,
+                      margin: '0 auto',
+                      borderRadius: 10,
+                      background: '#fff3cd',
+                      border: '2px solid #f7c948',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 30
+                    }}>
+                      {stickers[u.id] ? '🎖️' : '🔒'}
+                    </div>
+
+                    <div style={{ fontSize: 12, marginTop: 5 }}>
+                      {stickers[u.id] ? 'Weekly Reward Unlocked' : 'Complete all tasks this week'}
+                    </div>
+
+                  </div>
+
+
                 </div>
 
-                {/* BUTTONS */}
-                <div style={{ marginTop: 10 }}>
-                  <button style={btn} onClick={() => addKindness(u.id, '💖')}>💖</button>
-                  <button style={btn} onClick={() => addKindness(u.id, '🤗')}>🤗</button>
-                  <button style={btn} onClick={() => addKindness(u.id, '🌟')}>🌟</button>
-                  <button style={btn} onClick={() => addKindness(u.id, '😊')}>😊</button>
-                </div>
-                <div style={{ marginTop: 20, textAlign: 'center' }}>
+              ))}
 
-<h4>📘 Sticker Book</h4>
-
-<div style={{
-  width: 120,
-  height: 80,
-  margin: '0 auto',
-  borderRadius: 10,
-  background: '#fff3cd',
-  border: '2px solid #f7c948',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: 30
-}}>
-  {stickers[u.id] ? '🎖️' : '🔒'}
-</div>
-
-<div style={{ fontSize: 12, marginTop: 5 }}>
-  {stickers[u.id] ? 'Weekly Reward Unlocked' : 'Complete all tasks this week'}
-</div>
-
-</div>
-
-
-              </div>
-              
-            ))}
-
+            </div>
           </div>
-        </div>
         </>
 
-        
-      )}
+
+        )}
     </div>
   );
 }

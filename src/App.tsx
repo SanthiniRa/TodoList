@@ -17,7 +17,7 @@ const SOUND_SRC: Record<SoundKey, string> = {
   car: '/sounds/speeding-swoosh.wav',
   success: '/sounds/clap.wav',
   reward: '/sounds/huge-crowd-cheering-victory.wav',
-  jarOpen: '/sounds/huge-crowd-cheering-victory.wav',
+  jarOpen: '/sounds/long-pop.wav',
   jeep: '/sounds/engine-motor-hum.wav',
   jarFill: '/sounds/jar-fill.mp3',
 };
@@ -418,7 +418,7 @@ export default function App() {
         .eq('id', userId);
 
       // SOUND
-      engine.jarFill();
+      engine.reward();
 
       // CONFETTI
       confetti({
@@ -434,7 +434,7 @@ export default function App() {
 
     // CLOSE JAR
     setTimeout(() => {
-      engine.success();
+      //engine.reward();
       setOpenJar(null);
     }, 1400);
   };
@@ -791,7 +791,7 @@ export default function App() {
                       key={t.id}
                       onClick={() => {
                         //sound.unlock();
-                        //engine.click();
+                        engine.click();
                         confetti(); toggleTask(u, t.id)
                       }}
                       style={{

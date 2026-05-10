@@ -146,9 +146,23 @@ export default function App() {
   const [state, setState] = useState<Record<string, any>>({});
   const triggeredRef = useRef<Record<string, boolean>>({});
   const [rewards, setRewards] = useState<any[]>([]);
+  const [session, setSession] = useState<any>(null);
   /* ✅ KINDNESS (2 jars per kid) */
   const [kindnessJar, setKindnessJar] = useState<Record<string, string[]>>({});
   const [openJar, setOpenJar] = useState<string | null>(null);
+  const signInWithGitHub = async () => {
+    console.log("LOGIN CLICKED");
+    await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+  };
+  
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
   const handleJarClick = (userId: string) => {
     sound.unlock();
 
@@ -160,6 +174,31 @@ export default function App() {
       engine.success(); // when closing
     }, 1200);
   };
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const getInitialSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+  
+      setSession(session);
+      setLoading(false);
+    };
+  
+    getInitialSession();
+  
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+  
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
   /* ================= LOAD ================= */
   useEffect(() => {
     const load = async () => {
@@ -438,7 +477,7 @@ export default function App() {
   
     // CLOSE JAR
     setTimeout(() => {
-      engine.j();
+     engine.sucess();
       setOpenJar(null);
     }, 1400);
   };
@@ -466,7 +505,7 @@ export default function App() {
     sound.unlock();
     sound.play('car');
     //playEngineSound();
-    engine.car();
+    //engine.car();
     const el = document.createElement('div');
     el.innerHTML = '🚗💨';
 
@@ -650,7 +689,7 @@ export default function App() {
         origin: { y: 0.6 },
       });
     });
-    sound.unlock();
+    //sound.unlock();
 
     let played = false;
     
@@ -699,9 +738,37 @@ export default function App() {
     transition: 'transform 0.3s ease',
   });
 
+  if (loading) {
+    return (
+      <div style={container}>
+        <h1>Loading...</h1>
+      </div>
+    );
+  }
+  if (!session) {
+    return (
+      <div style={container}>
+        <div style={{ textAlign: 'center', marginTop: 100 }}>
+          <h1>Kids Todo Game</h1>
+  
+          <button style={btn} onClick={signInWithGitHub}>
+            Login with GitHub
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
-    <div style={container} onClick={() => sound.unlock()}>
+    <div style={container}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+    <span>{session.user?.email}</span>
 
+    <button style={btn} onClick={signOut}>
+      Logout
+    </button>
+  </div>
+</div>
       {/* ================= GAME ================= */}
       {page === 'game' && (<>
         <h1>ToDo Game</h1>
@@ -765,8 +832,8 @@ export default function App() {
                     <button
                       key={t.id}
                       onClick={() => {
-                        sound.unlock();
-                        engine.click();
+                        //sound.unlock();
+                        //engine.click();
                         confetti(); toggleTask(u, t.id)
                       }}
                       style={{
@@ -1044,3 +1111,4 @@ const item: React.CSSProperties = {
   fontSize: 32,
   animation: 'popIn 0.3s ease',
 };
+

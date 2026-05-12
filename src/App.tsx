@@ -145,6 +145,7 @@ export default function App() {
   const engine = useRef(createSoundEngine(sound)).current;
   const [parentCode, setParentCode] = useState('');
   const [parentUnlocked, setParentUnlocked] = useState(false);
+  const [wellBehavedUsed, setWellBehavedUsed] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState<'game' | 'kindness'>('game');
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('morning');
   const [stickers, setStickers] = useState<Record<string, boolean>>({});
@@ -610,13 +611,6 @@ export default function App() {
   const unlockParentMode = () => {
     if (parentCode.toLowerCase() === SECRET_CODE) {
       setParentUnlocked(true);
-  
-      confetti({
-        particleCount: 80,
-        spread: 70,
-      });
-  
-      sound.play('success');
     } else {
       alert('Wrong secret code');
     }
@@ -964,24 +958,43 @@ export default function App() {
                   <div>⭐ Total: {state[u.id]?.xp || 0}</div>
                   <div>🔥 Today: {state[u.id]?.todayXP || 0}</div>
                                    <div> <button
-                    disabled={!parentUnlocked}
-                    onClick={() =>
-                      dancingKid(
-                        u.avatar ||
-                        'https://cdn-icons-png.flaticon.com/512/4140/4140048.png'
-                      )
-                    }
-                    style={{
-                      ...btn,
-                      background: parentUnlocked ? '#51cf66' : '#ccc',
-                      color: 'white',
-                      fontWeight: 'bold',
-                      cursor: parentUnlocked ? 'pointer' : 'not-allowed',
-                      opacity: parentUnlocked ? 1 : 0.6,
-                    }}
-                  >
-                    ⭐ Well Behaved
-                  </button></div>
+  disabled={!parentUnlocked || wellBehavedUsed[u.id]}
+  onClick={() => {
+    dancingKid(
+      u.avatar ||
+      'https://cdn-icons-png.flaticon.com/512/4140/4140048.png'
+    );
+
+    setWellBehavedUsed(prev => ({
+      ...prev,
+      [u.id]: true,
+    }));
+  }}
+  style={{
+    ...btn,
+    background:
+      !parentUnlocked || wellBehavedUsed[u.id]
+        ? '#ccc'
+        : '#51cf66',
+
+    color: 'white',
+    fontWeight: 'bold',
+
+    cursor:
+      !parentUnlocked || wellBehavedUsed[u.id]
+        ? 'not-allowed'
+        : 'pointer',
+
+    opacity:
+      !parentUnlocked || wellBehavedUsed[u.id]
+        ? 0.6
+        : 1,
+  }}
+>
+  {wellBehavedUsed[u.id]
+    ? '✅ Reward Given'
+    : '⭐ Well Behaved'}
+</button></div>
                 </div>
               </div>
 

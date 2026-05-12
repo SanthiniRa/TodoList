@@ -291,103 +291,59 @@ export default function App() {
           opacity: 1;
         }
       }
-      @keyframes headDance {
-        0% { transform: rotate(-10deg); }
-        50% { transform: rotate(10deg); }
-        100% { transform: rotate(-10deg); }
-      }
-      
-      @keyframes bodyBounce {
-        0% {
-          transform: translateY(0px);
-        }
-      
-        50% {
-          transform: translateY(-20px);
-        }
-      
-        100% {
-          transform: translateY(0px);
-        }
-      }
-      
-      @keyframes leftArmDance {
-        0% {
-          transform: rotate(40deg);
-        }
-      
-        50% {
-          transform: rotate(-40deg);
-        }
-      
-        100% {
-          transform: rotate(40deg);
-        }
-      }
-      
-      @keyframes rightArmDance {
-        0% {
-          transform: rotate(-40deg);
-        }
-      
-        50% {
-          transform: rotate(40deg);
-        }
-      
-        100% {
-          transform: rotate(-40deg);
-        }
-      }
-      
-      @keyframes legDance {
-        0% {
-          transform: rotate(20deg);
-        }
-      
-        50% {
-          transform: rotate(-20deg);
-        }
-      
-        100% {
-          transform: rotate(20deg);
-        }
-      }
-      @keyframes kidDance {
+      @keyframes fullDance {
+
         0% {
           transform:
-            translate(-50%, -50%)
-            rotate(-10deg)
+            translateY(0px)
+            rotate(-6deg)
             scale(1);
         }
       
         25% {
           transform:
-            translate(-50%, -50%)
-            rotate(10deg)
-            scale(1.08);
+            translateY(-20px)
+            rotate(6deg)
+            scale(1.05);
         }
       
         50% {
           transform:
-            translate(-50%, -50%)
-            rotate(-10deg)
+            translateY(0px)
+            rotate(-6deg)
             scale(1);
         }
       
         75% {
           transform:
-            translate(-50%, -50%)
-            rotate(10deg)
-            scale(1.08);
+            translateY(-15px)
+            rotate(6deg)
+            scale(1.05);
         }
       
         100% {
           transform:
-            translate(-50%, -50%)
-            rotate(-10deg)
+            translateY(0px)
+            rotate(-6deg)
             scale(1);
         }
       }
+      
+      @keyframes headMove {
+      
+        0% {
+          transform: rotate(-8deg);
+        }
+      
+        50% {
+          transform: rotate(8deg);
+        }
+      
+        100% {
+          transform: rotate(-8deg);
+        }
+      }
+      
     `;
 
     document.head.appendChild(style);
@@ -594,102 +550,66 @@ export default function App() {
     );
   };
 //Dancing avatar
-const dancingKid = (imageUrl: string) => {
+const dancingKid = (
+  faceUrl: string,
+  gender: string = 'boy'
+) => {
   const wrapper = document.createElement('div');
 
   wrapper.style.position = 'fixed';
   wrapper.style.left = '50%';
   wrapper.style.top = '50%';
+  wrapper.style.width = '300px';
+  wrapper.style.height = '420px';
   wrapper.style.transform = 'translate(-50%, -50%)';
   wrapper.style.zIndex = '99999';
   wrapper.style.pointerEvents = 'none';
 
-  // HEAD
-  const head = document.createElement('img');
+  // BODY IMAGE
+  const body = document.createElement('img');
 
-  head.src =
-    imageUrl ||
+  body.src =
+    gender === 'girl'
+      ? '/girl_dance.png'
+      : '/boy_dance.png';
+
+  body.style.width = '100%';
+  body.style.height = '100%';
+  body.style.objectFit = 'contain';
+  body.style.position = 'absolute';
+  body.style.left = '0';
+  body.style.top = '0';
+  body.style.animation = 'fullDance 0.7s infinite';
+
+  // FACE
+  const face = document.createElement('img');
+
+  face.src =
+    faceUrl ||
     'https://cdn-icons-png.flaticon.com/512/4140/4140048.png';
 
-  head.style.width = '120px';
-  head.style.height = '120px';
-  head.style.objectFit = 'cover';
-  head.style.borderRadius = '50%';
-  head.style.border = '6px solid white';
-  head.style.display = 'block';
-  head.style.margin = '0 auto';
-  head.style.animation = 'headDance 0.5s infinite';
+  face.style.position = 'absolute';
 
-  // BODY
-  const body = document.createElement('div');
+  // adjust depending on body png
+  face.style.top = '35px';
+  face.style.left = '102px';
 
-  body.style.width = '90px';
-  body.style.height = '120px';
-  body.style.background = '#4dabf7';
-  body.style.margin = '0 auto';
-  body.style.borderRadius = '30px';
-  body.style.position = 'relative';
-  body.style.animation = 'bodyBounce 0.5s infinite';
+  face.style.width = '95px';
+  face.style.height = '95px';
 
-  // LEFT ARM
-  const leftArm = document.createElement('div');
+  face.style.borderRadius = '50%';
+  face.style.objectFit = 'cover';
 
-  leftArm.style.position = 'absolute';
-  leftArm.style.width = '20px';
-  leftArm.style.height = '90px';
-  leftArm.style.background = '#ffd8a8';
-  leftArm.style.left = '-15px';
-  leftArm.style.top = '10px';
-  leftArm.style.transformOrigin = 'top center';
-  leftArm.style.borderRadius = '20px';
-  leftArm.style.animation = 'leftArmDance 0.4s infinite';
+  face.style.border = '5px solid white';
 
-  // RIGHT ARM
-  const rightArm = document.createElement('div');
+  face.style.animation = 'headMove 0.7s infinite';
 
-  rightArm.style.position = 'absolute';
-  rightArm.style.width = '20px';
-  rightArm.style.height = '90px';
-  rightArm.style.background = '#ffd8a8';
-  rightArm.style.right = '-15px';
-  rightArm.style.top = '10px';
-  rightArm.style.transformOrigin = 'top center';
-  rightArm.style.borderRadius = '20px';
-  rightArm.style.animation = 'rightArmDance 0.4s infinite';
-
-  // LEGS
-  const legs = document.createElement('div');
-
-  legs.style.display = 'flex';
-  legs.style.justifyContent = 'center';
-  legs.style.gap = '20px';
-
-  const createLeg = () => {
-    const leg = document.createElement('div');
-
-    leg.style.width = '22px';
-    leg.style.height = '90px';
-    leg.style.background = '#343a40';
-    leg.style.borderRadius = '20px';
-    leg.style.transformOrigin = 'top center';
-    leg.style.animation = 'legDance 0.4s infinite';
-
-    return leg;
-  };
-
-  legs.appendChild(createLeg());
-  legs.appendChild(createLeg());
-
-  body.appendChild(leftArm);
-  body.appendChild(rightArm);
-
-  wrapper.appendChild(head);
   wrapper.appendChild(body);
-  wrapper.appendChild(legs);
+  wrapper.appendChild(face);
 
   document.body.appendChild(wrapper);
 
-  // PARTY BACKGROUND
+  // PARTY LIGHTS
   const flash = document.createElement('div');
 
   flash.style.position = 'fixed';
@@ -710,15 +630,13 @@ const dancingKid = (imageUrl: string) => {
 
   document.body.appendChild(flash);
 
-  // CONFETTI
   confetti({
-    particleCount: 250,
+    particleCount: 300,
     spread: 120,
   });
 
   sound.play('reward');
 
-  // REMOVE AFTER 5s
   setTimeout(() => {
     wrapper.remove();
     flash.remove();
@@ -1076,11 +994,8 @@ const dancingKid = (imageUrl: string) => {
                                    <div> <button
   disabled={!parentUnlocked || wellBehavedUsed[u.id]}
   onClick={() => {
-    dancingKid(
-      u.avatar ||
-      'https://cdn-icons-png.flaticon.com/512/4140/4140048.png'
-    );
-
+    dancingKid(u.avatar, u.gender);
+  
     setWellBehavedUsed(prev => ({
       ...prev,
       [u.id]: true,

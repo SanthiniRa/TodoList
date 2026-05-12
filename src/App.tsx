@@ -820,6 +820,7 @@ export default function App() {
                 {rewards.map((r: any, i: number) => (
                   <button
                     key={r.id}
+                    disabled={u.todayXP < r.points_required}
                     onClick={() => buyReward(u, r)}
                     style={{
                       ...btn,

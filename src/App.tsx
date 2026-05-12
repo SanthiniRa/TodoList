@@ -550,97 +550,55 @@ export default function App() {
     );
   };
 //Dancing avatar
-const dancingKid = (
-  faceUrl: string,
-  gender: string = 'boy'
-) => {
-  const wrapper = document.createElement('div');
+const playDanceVideo = (gender: string = 'boy') => {
+  const overlay = document.createElement('div');
 
-  wrapper.style.position = 'fixed';
-  wrapper.style.left = '50%';
-  wrapper.style.top = '50%';
-  wrapper.style.width = '300px';
-  wrapper.style.height = '420px';
-  wrapper.style.transform = 'translate(-50%, -50%)';
-  wrapper.style.zIndex = '99999';
-  wrapper.style.pointerEvents = 'none';
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.background = 'rgba(0,0,0,0.75)';
+  overlay.style.display = 'flex';
+  overlay.style.alignItems = 'center';
+  overlay.style.justifyContent = 'center';
+  overlay.style.zIndex = '99999';
 
-  // BODY IMAGE
-  const body = document.createElement('img');
+  // VIDEO
+  const video = document.createElement('video');
 
-  body.src =
+  video.src =
     gender === 'girl'
-      ? '/girl_dance.png'
-      : '/boy_dance.png';
+      ? '/videos/dance-girl.mp4'
+      : '/videos/dance-boy.mp4';
 
-  body.style.width = '100%';
-  body.style.height = '100%';
-  body.style.objectFit = 'contain';
-  body.style.position = 'absolute';
-  body.style.left = '0';
-  body.style.top = '0';
-  body.style.animation = 'fullDance 0.7s infinite';
+  video.autoplay = true;
+  video.muted = false;
+  video.loop = false;
+  video.playsInline = true;
 
-  // FACE
-  const face = document.createElement('img');
+  video.style.width = '420px';
+  video.style.maxWidth = '90vw';
+  video.style.borderRadius = '24px';
+  video.style.boxShadow = '0 0 40px rgba(255,255,255,0.5)';
 
-  face.src =
-    faceUrl ||
-    'https://cdn-icons-png.flaticon.com/512/4140/4140048.png';
+  overlay.appendChild(video);
 
-  face.style.position = 'absolute';
-
-  // adjust depending on body png
-  face.style.top = '35px';
-  face.style.left = '102px';
-
-  face.style.width = '95px';
-  face.style.height = '95px';
-
-  face.style.borderRadius = '50%';
-  face.style.objectFit = 'cover';
-
-  face.style.border = '5px solid white';
-
-  face.style.animation = 'headMove 0.7s infinite';
-
-  wrapper.appendChild(body);
-  wrapper.appendChild(face);
-
-  document.body.appendChild(wrapper);
-
-  // PARTY LIGHTS
-  const flash = document.createElement('div');
-
-  flash.style.position = 'fixed';
-  flash.style.inset = '0';
-
-  flash.style.background = `
-    linear-gradient(
-      45deg,
-      #ff0080,
-      #ff8c00,
-      #40e0d0,
-      #7b68ee
-    )
-  `;
-
-  flash.style.opacity = '0.25';
-  flash.style.zIndex = '99990';
-
-  document.body.appendChild(flash);
+  document.body.appendChild(overlay);
 
   confetti({
-    particleCount: 300,
+    particleCount: 250,
     spread: 120,
   });
 
   sound.play('reward');
 
+  // AUTO CLOSE
+  video.onended = () => {
+    overlay.remove();
+  };
+
+  // FALLBACK
   setTimeout(() => {
-    wrapper.remove();
-    flash.remove();
-  }, 5000);
+    overlay.remove();
+  }, 8000);
 };
 
   const unlockParentMode = () => {
@@ -994,7 +952,7 @@ const dancingKid = (
                                    <div> <button
   disabled={!parentUnlocked || wellBehavedUsed[u.id]}
   onClick={() => {
-    dancingKid(u.avatar, u.gender);
+    playDanceVideo(u.gender);
   
     setWellBehavedUsed(prev => ({
       ...prev,

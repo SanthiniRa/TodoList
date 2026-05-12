@@ -994,16 +994,7 @@ const dancingKid = (imageUrl: string) => {
     <div style={container}>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span>{session.user?.email}</span>
-
-          <button style={btn} onClick={signOut}>
-            Logout
-          </button>
-        </div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-      <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 20 }}>
           <input
             type="password"
             placeholder="Parent Secret"
@@ -1020,8 +1011,14 @@ const dancingKid = (imageUrl: string) => {
           <button style={btn} onClick={unlockParentMode}>
             Unlock Parent Mode
           </button>
-</div></div>
         </div>
+          <span>{session.user?.email}</span>
+
+          <button style={btn} onClick={signOut}>
+            Logout
+          </button>
+        </div>
+      </div>
       {/* ================= GAME ================= */}
       {page === 'game' && (<>
         <h3>ToDo Game</h3>

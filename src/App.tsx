@@ -291,6 +291,67 @@ export default function App() {
           opacity: 1;
         }
       }
+      @keyframes headDance {
+        0% { transform: rotate(-10deg); }
+        50% { transform: rotate(10deg); }
+        100% { transform: rotate(-10deg); }
+      }
+      
+      @keyframes bodyBounce {
+        0% {
+          transform: translateY(0px);
+        }
+      
+        50% {
+          transform: translateY(-20px);
+        }
+      
+        100% {
+          transform: translateY(0px);
+        }
+      }
+      
+      @keyframes leftArmDance {
+        0% {
+          transform: rotate(40deg);
+        }
+      
+        50% {
+          transform: rotate(-40deg);
+        }
+      
+        100% {
+          transform: rotate(40deg);
+        }
+      }
+      
+      @keyframes rightArmDance {
+        0% {
+          transform: rotate(-40deg);
+        }
+      
+        50% {
+          transform: rotate(40deg);
+        }
+      
+        100% {
+          transform: rotate(-40deg);
+        }
+      }
+      
+      @keyframes legDance {
+        0% {
+          transform: rotate(20deg);
+        }
+      
+        50% {
+          transform: rotate(-20deg);
+        }
+      
+        100% {
+          transform: rotate(20deg);
+        }
+      }
       @keyframes kidDance {
         0% {
           transform:
@@ -533,80 +594,136 @@ export default function App() {
     );
   };
 //Dancing avatar
-  const dancingKid = (imageUrl: string) => {
-    const el = document.createElement('img');
-  
-    el.src = imageUrl;
-  
-    el.style.position = 'fixed';
-    el.style.left = '50%';
-    el.style.top = '50%';
-    el.style.width = '220px';
-    el.style.height = '220px';
-    el.style.objectFit = 'cover';
-    el.style.borderRadius = '50%';
-    el.style.border = '8px solid white';
-    el.style.boxShadow = '0 0 40px rgba(255,255,255,0.9)';
-    el.style.transform = 'translate(-50%, -50%)';
-    el.style.zIndex = '99999';
-    el.style.pointerEvents = 'none';
-  
-    document.body.appendChild(el);
-  
-    const flash = document.createElement('div');
-  
-    flash.style.position = 'fixed';
-    flash.style.inset = '0';
-    flash.style.background = `
-      linear-gradient(
-        45deg,
-        #ff0080,
-        #ff8c00,
-        #40e0d0,
-        #7b68ee
-      )
-    `;
-  
-    flash.style.opacity = '0.25';
-    flash.style.zIndex = '99990';
-  
-    document.body.appendChild(flash);
-  
-    const start = performance.now();
-    const duration = 4000;
-  
-    const animate = (time: number) => {
-      const t = time - start;
-  
-      if (t > duration) {
-        el.remove();
-        flash.remove();
-        return;
-      }
-  
-      const bounce = Math.sin(t / 120) * 50;
-      const rotate = Math.sin(t / 150) * 18;
-      const scale = 1 + Math.sin(t / 100) * 0.12;
-  
-      el.style.transform = `
-        translate(-50%, -50%)
-        translateY(${bounce}px)
-        rotate(${rotate}deg)
-        scale(${scale})
-      `;
-  
-      requestAnimationFrame(animate);
-    };
-  
-    requestAnimationFrame(animate);
-  
-    confetti({
-      particleCount: 180,
-      spread: 100,
-    });
-  
-    sound.play('reward');
+const dancingKid = (imageUrl: string) => {
+  const wrapper = document.createElement('div');
+
+  wrapper.style.position = 'fixed';
+  wrapper.style.left = '50%';
+  wrapper.style.top = '50%';
+  wrapper.style.transform = 'translate(-50%, -50%)';
+  wrapper.style.zIndex = '99999';
+  wrapper.style.pointerEvents = 'none';
+
+  // HEAD
+  const head = document.createElement('img');
+
+  head.src =
+    imageUrl ||
+    'https://cdn-icons-png.flaticon.com/512/4140/4140048.png';
+
+  head.style.width = '120px';
+  head.style.height = '120px';
+  head.style.objectFit = 'cover';
+  head.style.borderRadius = '50%';
+  head.style.border = '6px solid white';
+  head.style.display = 'block';
+  head.style.margin = '0 auto';
+  head.style.animation = 'headDance 0.5s infinite';
+
+  // BODY
+  const body = document.createElement('div');
+
+  body.style.width = '90px';
+  body.style.height = '120px';
+  body.style.background = '#4dabf7';
+  body.style.margin = '0 auto';
+  body.style.borderRadius = '30px';
+  body.style.position = 'relative';
+  body.style.animation = 'bodyBounce 0.5s infinite';
+
+  // LEFT ARM
+  const leftArm = document.createElement('div');
+
+  leftArm.style.position = 'absolute';
+  leftArm.style.width = '20px';
+  leftArm.style.height = '90px';
+  leftArm.style.background = '#ffd8a8';
+  leftArm.style.left = '-15px';
+  leftArm.style.top = '10px';
+  leftArm.style.transformOrigin = 'top center';
+  leftArm.style.borderRadius = '20px';
+  leftArm.style.animation = 'leftArmDance 0.4s infinite';
+
+  // RIGHT ARM
+  const rightArm = document.createElement('div');
+
+  rightArm.style.position = 'absolute';
+  rightArm.style.width = '20px';
+  rightArm.style.height = '90px';
+  rightArm.style.background = '#ffd8a8';
+  rightArm.style.right = '-15px';
+  rightArm.style.top = '10px';
+  rightArm.style.transformOrigin = 'top center';
+  rightArm.style.borderRadius = '20px';
+  rightArm.style.animation = 'rightArmDance 0.4s infinite';
+
+  // LEGS
+  const legs = document.createElement('div');
+
+  legs.style.display = 'flex';
+  legs.style.justifyContent = 'center';
+  legs.style.gap = '20px';
+
+  const createLeg = () => {
+    const leg = document.createElement('div');
+
+    leg.style.width = '22px';
+    leg.style.height = '90px';
+    leg.style.background = '#343a40';
+    leg.style.borderRadius = '20px';
+    leg.style.transformOrigin = 'top center';
+    leg.style.animation = 'legDance 0.4s infinite';
+
+    return leg;
   };
+
+  legs.appendChild(createLeg());
+  legs.appendChild(createLeg());
+
+  body.appendChild(leftArm);
+  body.appendChild(rightArm);
+
+  wrapper.appendChild(head);
+  wrapper.appendChild(body);
+  wrapper.appendChild(legs);
+
+  document.body.appendChild(wrapper);
+
+  // PARTY BACKGROUND
+  const flash = document.createElement('div');
+
+  flash.style.position = 'fixed';
+  flash.style.inset = '0';
+
+  flash.style.background = `
+    linear-gradient(
+      45deg,
+      #ff0080,
+      #ff8c00,
+      #40e0d0,
+      #7b68ee
+    )
+  `;
+
+  flash.style.opacity = '0.25';
+  flash.style.zIndex = '99990';
+
+  document.body.appendChild(flash);
+
+  // CONFETTI
+  confetti({
+    particleCount: 250,
+    spread: 120,
+  });
+
+  sound.play('reward');
+
+  // REMOVE AFTER 5s
+  setTimeout(() => {
+    wrapper.remove();
+    flash.remove();
+  }, 5000);
+};
 
   const unlockParentMode = () => {
     if (parentCode.toLowerCase() === SECRET_CODE) {
@@ -884,6 +1001,8 @@ export default function App() {
           </button>
         </div>
       </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}></div>
       <div style={{ marginBottom: 20 }}>
           <input
             type="password"
@@ -901,7 +1020,7 @@ export default function App() {
           <button style={btn} onClick={unlockParentMode}>
             Unlock Parent Mode
           </button>
-
+</div></div>
         </div>
       {/* ================= GAME ================= */}
       {page === 'game' && (<>

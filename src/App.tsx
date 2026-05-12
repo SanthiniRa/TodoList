@@ -86,16 +86,52 @@ const ROUTINE: Record<TimeSlot, string[]> = {
 /* ICON */
 const getTaskIcon = (title: string) => {
   const t = title.toLowerCase();
-  if (t.includes('brush')) return '🪥';
+
+  // MORNING
+  if (t.includes('good morning')) return '🌞';
+  if (t.includes('morning hug')) return '🤗';
   if (t.includes('breakfast')) return '🍳';
+  if (t.includes('school')) return '🎒';
+
+  // FOOD
   if (t.includes('lunch')) return '🍱';
   if (t.includes('dinner')) return '🍛';
-  if (t.includes('play')) return '⚽';
+  if (t.includes('drink water')) return '💧';
+
+  // HYGIENE
+  if (t.includes('brush')) return '🪥';
+  if (t.includes('face wash')) return '🫧';
   if (t.includes('bath')) return '🛁';
-  if (t.includes('sleep')) return '🌙';
-  if (t.includes('read')) return '📖';
+  if (t.includes('toilet')) return '🚽';
+  if (t.includes('hand wash')) return '🧼';
+
+  // PLAY / ACTIVITY
+  if (t.includes('play')) return '⚽';
+  if (t.includes('workout')) return '🏃';
+  if (t.includes('thinking game')) return '🧠';
+  if (t.includes('numbers')) return '🔢';
+  if (t.includes('drawing')) return '🎨';
+
+  // LEARNING
+  if (t.includes('reading')) return '📖';
+  if (t.includes('story')) return '📚';
+
+  // CLEANING
   if (t.includes('clean')) return '🧹';
+  if (t.includes('tidy')) return '🧺';
+  if (t.includes('make bed')) return '🛏️';
+
+  // FAMILY / KINDNESS
   if (t.includes('hug')) return '🤗';
+  if (t.includes('chatty')) return '💬';
+
+  // NIGHT
+  if (t.includes('night')) return '🌙';
+  if (t.includes('sleep')) return '😴';
+
+  // SPIRITUAL
+  if (t.includes('pray')) return '🙏';
+
   return '🧩';
 };
 
@@ -791,9 +827,10 @@ export default function App() {
                     <button
                       key={t.id}
                       onClick={() => {
+                        confetti();
                         sound.unlock();
                         engine.click();
-                        confetti(); toggleTask(u, t.id)
+                        toggleTask(u, t.id)
                       }}
                       style={{
                         ...btn,

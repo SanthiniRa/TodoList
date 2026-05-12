@@ -494,6 +494,81 @@ export default function App() {
       weekCompletions.some(c => c.task_id === taskId)
     );
   };
+//Dancing avatar
+  const dancingKid = (imageUrl: string) => {
+    const el = document.createElement('img');
+  
+    el.src = imageUrl;
+  
+    el.style.position = 'fixed';
+    el.style.left = '50%';
+    el.style.top = '50%';
+    el.style.width = '220px';
+    el.style.height = '220px';
+    el.style.objectFit = 'cover';
+    el.style.borderRadius = '50%';
+    el.style.border = '8px solid white';
+    el.style.boxShadow = '0 0 40px rgba(255,255,255,0.9)';
+    el.style.transform = 'translate(-50%, -50%)';
+    el.style.zIndex = '99999';
+    el.style.pointerEvents = 'none';
+  
+    document.body.appendChild(el);
+  
+    const flash = document.createElement('div');
+  
+    flash.style.position = 'fixed';
+    flash.style.inset = '0';
+    flash.style.background = `
+      linear-gradient(
+        45deg,
+        #ff0080,
+        #ff8c00,
+        #40e0d0,
+        #7b68ee
+      )
+    `;
+  
+    flash.style.opacity = '0.25';
+    flash.style.zIndex = '99990';
+  
+    document.body.appendChild(flash);
+  
+    const start = performance.now();
+    const duration = 4000;
+  
+    const animate = (time: number) => {
+      const t = time - start;
+  
+      if (t > duration) {
+        el.remove();
+        flash.remove();
+        return;
+      }
+  
+      const bounce = Math.sin(t / 120) * 50;
+      const rotate = Math.sin(t / 150) * 18;
+      const scale = 1 + Math.sin(t / 100) * 0.12;
+  
+      el.style.transform = `
+        translate(-50%, -50%)
+        translateY(${bounce}px)
+        rotate(${rotate}deg)
+        scale(${scale})
+      `;
+  
+      requestAnimationFrame(animate);
+    };
+  
+    requestAnimationFrame(animate);
+  
+    confetti({
+      particleCount: 180,
+      spread: 100,
+    });
+  
+    sound.play('reward');
+  };
 
   const moveCar = () => {
     sound.unlock();
@@ -800,7 +875,18 @@ export default function App() {
                     textAlign: 'center',
                   }}
                 >
-                  {u.name}
+                                <img
+                src={u.avatar}
+                alt={u.name}
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '4px solid white',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+                }}
+              />
                 </h2>
 
                 {/* RIGHT STATS */}
@@ -877,6 +963,7 @@ export default function App() {
                   </button>
                 ))}
               </div>
+              dancingKid(u.avatar);
               <h4>🏡 My Room</h4>
 
               <div style={houseRoof} />

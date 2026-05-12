@@ -729,7 +729,7 @@ export default function App() {
       </div>
       {/* ================= GAME ================= */}
       {page === 'game' && (<>
-        <h1>ToDo Game</h1>
+        <h3>ToDo Game</h3>
 
         <select value={timeSlot} onChange={(e) => setTimeSlot(e.target.value as TimeSlot)}>
           {timeSlots.map(t => <option key={t}>{t}</option>)}
@@ -820,7 +820,7 @@ export default function App() {
                 {rewards.map((r: any, i: number) => (
                   <button
                     key={r.id}
-                    disabled={u.todayXP < r.points_required}
+                    disabled={(state[u.id]?.xp || 0) < r.points_required}
                     onClick={() => buyReward(u, r)}
                     style={{
                       ...btn,

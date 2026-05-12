@@ -1002,7 +1002,7 @@ const dancingKid = (imageUrl: string) => {
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}></div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
       <div style={{ marginBottom: 20 }}>
           <input
             type="password"

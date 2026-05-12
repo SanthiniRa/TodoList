@@ -138,12 +138,13 @@ const getTaskIcon = (title: string) => {
 /* REWARDS */
 
 const ROOM_SLOTS = 40;
-
+const SECRET_CODE = 'superparent';
 
 export default function App() {
   const sound = useRef(createSoundManager()).current;
   const engine = useRef(createSoundEngine(sound)).current;
-
+  const [parentCode, setParentCode] = useState('');
+  const [parentUnlocked, setParentUnlocked] = useState(false);
   const [page, setPage] = useState<'game' | 'kindness'>('game');
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('morning');
   const [stickers, setStickers] = useState<Record<string, boolean>>({});
@@ -287,6 +288,42 @@ export default function App() {
         100% {
           transform: scale(1);
           opacity: 1;
+        }
+      }
+      @keyframes kidDance {
+        0% {
+          transform:
+            translate(-50%, -50%)
+            rotate(-10deg)
+            scale(1);
+        }
+      
+        25% {
+          transform:
+            translate(-50%, -50%)
+            rotate(10deg)
+            scale(1.08);
+        }
+      
+        50% {
+          transform:
+            translate(-50%, -50%)
+            rotate(-10deg)
+            scale(1);
+        }
+      
+        75% {
+          transform:
+            translate(-50%, -50%)
+            rotate(10deg)
+            scale(1.08);
+        }
+      
+        100% {
+          transform:
+            translate(-50%, -50%)
+            rotate(-10deg)
+            scale(1);
         }
       }
     `;
@@ -570,6 +607,21 @@ export default function App() {
     sound.play('reward');
   };
 
+  const unlockParentMode = () => {
+    if (parentCode.toLowerCase() === SECRET_CODE) {
+      setParentUnlocked(true);
+  
+      confetti({
+        particleCount: 80,
+        spread: 70,
+      });
+  
+      sound.play('success');
+    } else {
+      alert('Wrong secret code');
+    }
+  };
+
   const moveCar = () => {
     sound.unlock();
     sound.play('car');
@@ -582,7 +634,7 @@ export default function App() {
     el.style.left = '-80px';
     el.style.top = '45%';
     el.style.fontSize = '50px';
-    el.style.transition = 'transform 3s cubic-bezier(.2,.8,.2,1)';
+    el.style.animation = 'kidDance 0.5s infinite';
     el.style.zIndex = '9999';
     el.style.pointerEvents = 'none';
 
@@ -838,6 +890,25 @@ export default function App() {
           </button>
         </div>
       </div>
+      <div style={{ marginBottom: 20 }}>
+          <input
+            type="password"
+            placeholder="Parent Secret"
+            value={parentCode}
+            onChange={(e) => setParentCode(e.target.value)}
+            style={{
+              padding: 10,
+              borderRadius: 10,
+              border: '1px solid #ccc',
+              marginRight: 10,
+            }}
+          />
+
+          <button style={btn} onClick={unlockParentMode}>
+            Unlock Parent Mode
+          </button>
+
+        </div>
       {/* ================= GAME ================= */}
       {page === 'game' && (<>
         <h3>ToDo Game</h3>
@@ -875,18 +946,7 @@ export default function App() {
                     textAlign: 'center',
                   }}
                 >
-                                <img
-                src={u.avatar}
-                alt={u.name}
-                style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  border: '4px solid white',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
-                }}
-              />
+                  {u.name}
                 </h2>
 
                 {/* RIGHT STATS */}
@@ -903,6 +963,25 @@ export default function App() {
                 >
                   <div>⭐ Total: {state[u.id]?.xp || 0}</div>
                   <div>🔥 Today: {state[u.id]?.todayXP || 0}</div>
+                                   <div> <button
+                    disabled={!parentUnlocked}
+                    onClick={() =>
+                      dancingKid(
+                        u.avatar ||
+                        'https://cdn-icons-png.flaticon.com/512/4140/4140048.png'
+                      )
+                    }
+                    style={{
+                      ...btn,
+                      background: parentUnlocked ? '#51cf66' : '#ccc',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      cursor: parentUnlocked ? 'pointer' : 'not-allowed',
+                      opacity: parentUnlocked ? 1 : 0.6,
+                    }}
+                  >
+                    ⭐ Well Behaved
+                  </button></div>
                 </div>
               </div>
 
@@ -963,7 +1042,6 @@ export default function App() {
                   </button>
                 ))}
               </div>
-              dancingKid(u.avatar);
               <h4>🏡 My Room</h4>
 
               <div style={houseRoof} />

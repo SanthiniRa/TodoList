@@ -142,9 +142,15 @@ const getTaskIcon = (title: string) => {
 
 const ROOM_SLOTS = 40;
 const SECRET_CODE = 'superparent';
-const preload = document.createElement('video');
-preload.src = '/videos/boy_dancing.mp4';
-preload.preload = 'auto';
+useEffect(() => {
+  const preloadVideo = document.createElement('video');
+
+  preloadVideo.src = '/videos/boy_dancing.mp4';
+  preloadVideo.preload = 'auto';
+  preloadVideo.muted = true;
+
+  preloadVideo.load();
+}, []);
 export default function App() {
   const sound = useRef(createSoundManager()).current;
   const engine = useRef(createSoundEngine(sound)).current;
@@ -610,7 +616,13 @@ export default function App() {
   };
   //Dancing avatar
   const playDanceVideo = async (gender: string = 'boy') => {
+    // REMOVE OLD OVERLAY IF EXISTS
+    const existing = document.getElementById('dance-overlay');
+    if (existing) existing.remove();
+  
+    // OVERLAY
     const overlay = document.createElement('div');
+    overlay.id = 'dance-overlay';
   
     overlay.style.position = 'fixed';
     overlay.style.inset = '0';
@@ -618,7 +630,7 @@ export default function App() {
     overlay.style.display = 'flex';
     overlay.style.alignItems = 'center';
     overlay.style.justifyContent = 'center';
-    overlay.style.zIndex = '99999';
+    overlay.style.zIndex = '999999';
   
     // VIDEO
     const video = document.createElement('video');
@@ -628,12 +640,16 @@ export default function App() {
         ? '/videos/girl_dancing.mp4'
         : '/videos/boy_dancing.mp4';
   
-    // IMPORTANT
+    // IMPORTANT FIXES
     video.preload = 'auto';
-    video.muted = true; // browsers allow autoplay only if muted
-    video.playsInline = true;
-    video.loop = false;
+    video.muted = true;
     video.autoplay = false;
+    video.playsInline = true;
+    video.controls = false;
+  
+    // FORCE iOS SAFARI
+    video.setAttribute('playsinline', 'true');
+    video.setAttribute('webkit-playsinline', 'true');
   
     video.style.width = '420px';
     video.style.maxWidth = '90vw';
@@ -643,6 +659,20 @@ export default function App() {
     overlay.appendChild(video);
     document.body.appendChild(overlay);
   
+    // FORCE LOAD
+    video.load();
+  
+    // PLAY IMMEDIATELY
+    try {
+      await video.play();
+  
+      // OPTIONAL SOUND AFTER PLAY STARTS
+      video.muted = false;
+    } catch (err) {
+      console.error('PLAY FAILED', err);
+    }
+  
+    // EFFECTS
     confetti({
       particleCount: 250,
       spread: 120,
@@ -650,36 +680,15 @@ export default function App() {
   
     sound.play('reward');
   
-    // Wait until video can play
-    video.addEventListener(
-      'canplaythrough',
-      async () => {
-        try {
-          await video.play();
-        } catch (err) {
-          console.error('Video play failed:', err);
-        }
-      },
-      { once: true }
-    );
-  
-    // AUTO CLOSE
+    // REMOVE WHEN DONE
     video.onended = () => {
       overlay.remove();
     };
   
-    // FALLBACK
+    // SAFETY REMOVE
     setTimeout(() => {
       overlay.remove();
     }, 8000);
-  };
-
-  const unlockParentMode = () => {
-    if (parentCode.toLowerCase() === SECRET_CODE) {
-      setParentUnlocked(true);
-    } else {
-      alert('Wrong secret code');
-    }
   };
 
   const moveCar = () => {

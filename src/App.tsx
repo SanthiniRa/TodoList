@@ -677,6 +677,7 @@ const playDanceVideo = (gender: string = 'boy') => {
     el.style.fontSize = '50px';
     el.style.animation = 'kidDance 0.5s infinite';
     el.style.zIndex = '9999';
+    el.style.transition = 'transform 3s linear';
     el.style.pointerEvents = 'none';
 
     document.body.appendChild(el);

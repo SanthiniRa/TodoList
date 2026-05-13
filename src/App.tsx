@@ -485,7 +485,9 @@ export default function App() {
           : u
       )
     );
-    // await loadData();
+    useEffect(() => {
+      loadData();
+    }, []);
   };
   /*-----------Reward <room----></room----*/
   const getRoomColor = (gender: string) => {

@@ -952,7 +952,7 @@ const playDanceVideo = (gender: string = 'boy') => {
                                    <div> <button
   disabled={!parentUnlocked || wellBehavedUsed[u.id]}
   onClick={() => {
-    playDanceVideo(u.gender);
+    //playDanceVideo(u.gender);
   
     setWellBehavedUsed(prev => ({
       ...prev,

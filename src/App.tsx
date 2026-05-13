@@ -614,6 +614,15 @@ export default function App() {
       weekCompletions.some(c => c.task_id === taskId)
     );
   };
+
+  const unlockParentMode = () => {
+    if (parentCode.toLowerCase() === SECRET_CODE) {
+      setParentUnlocked(true);
+    } else {
+      alert('Wrong secret code');
+    }
+  };
+  
   //Dancing avatar
   const playDanceVideo = async (gender: string = 'boy') => {
     // REMOVE OLD OVERLAY IF EXISTS

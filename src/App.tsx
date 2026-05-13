@@ -241,12 +241,12 @@ export default function App() {
       const userTodayCompletions = todayCompletions?.filter(c => c.user_id === user.id) || [];
   
       const todayXP = userTodayCompletions.reduce(
-        (sum, c) => sum + (c.point_earned || 0),
+        (sum, c) => sum + (c.points_earned || 0),
         0
       );
   
       const earnedPoints = userCompletions.reduce(
-        (sum, c) => sum + (c.point_earned || 0),
+        (sum, c) => sum + (c.points_earned || 0),
         0
       );
   
@@ -415,7 +415,7 @@ export default function App() {
       await supabase.from('task_completions').insert({
         user_id: user.id,
         task_id: taskId,
-        point_earned: task.reward_point || 10,
+        points_earned: task.reward_point || 10,
         completed: true,
         date: new Date().toISOString().split('T')[0],
       });

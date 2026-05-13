@@ -196,7 +196,7 @@ export default function App() {
   }, []);
   /* ================= LOAD ================= */
   useEffect(() => {
-    const load = async () => {
+    const loadData = async () => {
       const { data: usersData } = await supabase.from('users').select('*');
       const { data: tasksData } = await supabase.from('tasks').select('*');
       const today = new Date().toISOString().split('T')[0];
@@ -239,8 +239,21 @@ export default function App() {
         const userTodayCompletions =
           todayCompletions?.filter(c => c.user_id === user.id) || [];
 
-        const todayXP = userTodayCompletions.length * 10;
-        const totalXP = userCompletions.length * 10;
+          const todayXP = userTodayCompletions.reduce(
+            (sum, c) => sum + (c.point_earned || 0),
+            0
+          );
+        const earnedPoints = userCompletions.reduce(
+          (sum, c) => sum + (c.point_earned || 0),
+          0
+        );
+        
+        const spentPoints = userRewards.reduce(
+          (sum, r) => sum + (r.points_spent || 0),
+          0
+        );
+        
+        const totalXP = earnedPoints - spentPoints;
 
         newState[user.id] = {
           xp: totalXP,
@@ -250,6 +263,7 @@ export default function App() {
             icon: getTaskIcon(t.title),
             text: t.title,
             description: t.description || 'MORN',
+            reward_point: t.reward_point || 10,
             done: userTodayCompletions.some(c => c.task_id === t.id),
           })),
           dailyJar: userRewards
@@ -261,7 +275,7 @@ export default function App() {
       setState(newState);
       setKindnessJar(jarInit);
     };
-
+    await loadData();
     load();
   }, []);
 
@@ -355,44 +369,84 @@ export default function App() {
 
   /* ================= TASK ================= */
   const toggleTask = async (user: any, taskId: string) => {
-    const task = state[user.id]?.tasks?.find((t: any) => t.id === taskId);
+    const task = state[user.id]?.tasks?.find(
+      (t: any) => t.id === taskId
+    );
+  
     if (!task) return;
-
+  
     const isDone = task.done;
-
+  
     setState(prev => {
       const updated = prev[user.id].tasks.map((t: any) =>
-        t.id === taskId ? { ...t, done: !t.done } : t
+        t.id === taskId
+          ? { ...t, done: !t.done }
+          : t
       );
-      const todayXP =
-        updated.filter((t: any) => t.done).length * 10;
-
-      const xp =
-        updated.filter((t: any) => t.done).length * 10;
+  
+      const todayXP = updated
+        .filter((t: any) => t.done)
+        .reduce(
+          (sum: number, t: any) =>
+            sum + (t.reward_point || 0),
+          0
+        );
+  
       return {
         ...prev,
         [user.id]: {
           ...prev[user.id],
           tasks: updated,
           todayXP,
-          xp: prev[user.id].xp + (isDone ? -10 : 10),
+          xp:
+            prev[user.id].xp +
+            (isDone
+              ? -(task.reward_point || 0)
+              : (task.reward_point || 0)),
         },
       };
     });
-
+  
     if (!isDone) {
+  
       await supabase.from('task_completions').insert({
         user_id: user.id,
         task_id: taskId,
-        completed: 'TRUE'
+        point_earned: task.reward_point || 10,
+        completed: true,
+        date: new Date().toISOString().split('T')[0],
       });
+  
+      await supabase
+        .from('users')
+        .update({
+          totalpoints:
+            (state[user.id]?.xp || 0) +
+            (task.reward_point || 0),
+        })
+        .eq('id', user.id);
+  
     } else {
+  
       await supabase
         .from('task_completions')
         .delete()
         .eq('user_id', user.id)
         .eq('task_id', taskId);
+  
+      await supabase
+        .from('users')
+        .update({
+          totalpoints: Math.max(
+            0,
+            (state[user.id]?.xp || 0) -
+              (task.reward_point || 0)
+          ),
+        })
+        .eq('id', user.id);
     }
+  
+    await loadData();
   };
 
   /* ================= REWARD ================= */

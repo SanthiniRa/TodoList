@@ -619,8 +619,8 @@ const playDanceVideo = (gender: string = 'boy') => {
 
   video.src =
     gender === 'girl'
-      ? '/videos/dance-girl.mp4'
-      : '/videos/dance-boy.mp4';
+      ? '/videos/boy_dancing.mp4'
+      : '/videos/boy_dancing.mp4';
 
   video.autoplay = true;
   video.muted = false;

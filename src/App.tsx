@@ -198,63 +198,63 @@ export default function App() {
   const loadData = async () => {
     const { data: usersData } = await supabase.from('users').select('*');
     const { data: tasksData } = await supabase.from('tasks').select('*');
-  
+
     const today = new Date().toISOString().split('T')[0];
-  
+
     const { data: allCompletions } = await supabase
       .from('task_completions')
       .select('*');
-  
+
     const { data: todayCompletions } = await supabase
       .from('task_completions')
       .select('*')
       .eq('date', today);
-  
+
     const { data: redeemed } = await supabase.from('reward_redemptions').select('*');
     const { data: rewardsData } = await supabase.from('rewards').select('*');
-  
+
     setRewards(rewardsData || []);
     setUsers(usersData || []);
-  
+
     const stickerState: any = {};
-  
+
     (usersData || []).forEach(user => {
       const completed = hasCompletedAllTasksThisWeek(
         user.id,
         tasksData || [],
         allCompletions || []
       );
-  
+
       stickerState[user.id] = completed;
     });
-  
+
     setStickers(stickerState);
-  
+
     const newState: any = {};
     const jarInit: any = {};
-  
+
     (usersData || []).forEach(user => {
       jarInit[user.id] = user.emoji || [];
-  
+
       const userRewards = redeemed?.filter(r => r.user_id === user.id) || [];
       const userCompletions = allCompletions?.filter(c => c.user_id === user.id) || [];
       const userTodayCompletions = todayCompletions?.filter(c => c.user_id === user.id) || [];
-  
+
       const todayXP = userTodayCompletions.reduce(
         (sum, c) => sum + (c.points_earned || 0),
         0
       );
-  
+
       const earnedPoints = userCompletions.reduce(
         (sum, c) => sum + (c.points_earned || 0),
         0
       );
-  
+
       const spentPoints = userRewards.reduce(
         (sum, r) => sum + (r.points_spent || 0),
         0
       );
-  
+
       newState[user.id] = {
         xp: user.totalpoints || 0,
         todayXP,
@@ -271,11 +271,11 @@ export default function App() {
           .filter(Boolean),
       };
     });
-  
+
     setState(newState);
     setKindnessJar(jarInit);
   };
-  
+
   useEffect(() => {
     loadData();
   }, []);
@@ -372,10 +372,10 @@ export default function App() {
   const toggleTask = async (user: any, taskId: string) => {
     const task = state[user.id]?.tasks?.find((t: any) => t.id === taskId);
     if (!task) return;
-  
+
     const isDone = task.done;
     const delta = isDone ? -task.reward_point : task.reward_point;
-  
+
     // 1. update completion table first
     if (!isDone) {
       await supabase.from('task_completions').insert({
@@ -392,39 +392,38 @@ export default function App() {
         .eq('user_id', user.id)
         .eq('task_id', taskId);
     }
-  
+
     // 2. get fresh XP from DB FIRST (important fix)
     const { data: currentUser } = await supabase
       .from('users')
       .select('totalpoints')
       .eq('id', user.id)
       .single();
-  
+
     const newXP = (currentUser?.totalpoints || 0) + delta;
-  
+
     // 3. update DB
     await supabase
       .from('users')
       .update({ totalpoints: newXP })
       .eq('id', user.id);
-  
+
     // 4. update UI safely
     setState(prev => {
       const updated = prev[user.id].tasks.map((t: any) =>
         t.id === taskId ? { ...t, done: !t.done } : t
       );
-  
+
       const todayXP = updated
         .filter((t: any) => t.done)
         .reduce((sum: number, t: any) => sum + (t.reward_point || 0), 0);
-  
+
       return {
         ...prev,
         [user.id]: {
           ...prev[user.id],
           tasks: updated,
           todayXP,
-          xp: newXP, // ✅ now correct
         },
       };
     });
@@ -434,24 +433,24 @@ export default function App() {
   const buyReward = async (user: any, item: any) => {
     sound.unlock();
     if (!item) return;
-  
+
     if (item.title.toLowerCase().includes('car')) moveCar();
     if (item.title.toLowerCase().includes('jeep')) jeepRideEffect();
     if (item.title.toLowerCase().includes('trophy')) trophyDance();
-  
+
     // 1. GET FRESH XP FROM DB (authoritative check)
     const { data: userData } = await supabase
       .from('users')
       .select('totalpoints')
       .eq('id', user.id)
       .single();
-  
+
     const currentXP = userData?.totalpoints || 0;
-  
+
     if (currentXP < item.points_required) return;
-  
+
     confetti();
-  
+
     // 2. optimistic UI update (NO XP HERE)
     setState(prev => ({
       ...prev,
@@ -467,7 +466,7 @@ export default function App() {
       reward_id: item.id,
       points_spent: item.points_required,
     });
-  
+
     // 4. update DB (source of truth)
     await supabase
       .from('users')
@@ -475,19 +474,19 @@ export default function App() {
         totalpoints: currentXP - item.points_required,
       })
       .eq('id', user.id);
-  
+
     // OPTIONAL: refresh state if you want perfect sync
     // update users (this fixes XP display)
     setUsers(prev =>
       prev.map(u =>
         u.id === user.id
-          ? { ...u, totalpoints: currentXP - item.points_required }
+          ? {
+              ...u,
+              totalpoints: u.totalpoints - item.points_required,
+            }
           : u
       )
     );
-    useEffect(() => {
-      loadData();
-    }, []);
   };
   /*-----------Reward <room----></room----*/
   const getRoomColor = (gender: string) => {
@@ -604,57 +603,57 @@ export default function App() {
       weekCompletions.some(c => c.task_id === taskId)
     );
   };
-//Dancing avatar
-const playDanceVideo = (gender: string = 'boy') => {
-  const overlay = document.createElement('div');
+  //Dancing avatar
+  const playDanceVideo = (gender: string = 'boy') => {
+    const overlay = document.createElement('div');
 
-  overlay.style.position = 'fixed';
-  overlay.style.inset = '0';
-  overlay.style.background = 'rgba(0,0,0,0.75)';
-  overlay.style.display = 'flex';
-  overlay.style.alignItems = 'center';
-  overlay.style.justifyContent = 'center';
-  overlay.style.zIndex = '99999';
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(0,0,0,0.75)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '99999';
 
-  // VIDEO
-  const video = document.createElement('video');
+    // VIDEO
+    const video = document.createElement('video');
 
-  video.src =
-    gender === 'girl'
-      ? '/videos/boy_dancing.mp4'
-      : '/videos/boy_dancing.mp4';
+    video.src =
+      gender === 'girl'
+        ? '/videos/boy_dancing.mp4'
+        : '/videos/boy_dancing.mp4';
 
-  video.autoplay = true;
-  video.muted = false;
-  video.loop = false;
-  video.playsInline = true;
+    video.autoplay = true;
+    video.muted = false;
+    video.loop = false;
+    video.playsInline = true;
 
-  video.style.width = '420px';
-  video.style.maxWidth = '90vw';
-  video.style.borderRadius = '24px';
-  video.style.boxShadow = '0 0 40px rgba(255,255,255,0.5)';
+    video.style.width = '420px';
+    video.style.maxWidth = '90vw';
+    video.style.borderRadius = '24px';
+    video.style.boxShadow = '0 0 40px rgba(255,255,255,0.5)';
 
-  overlay.appendChild(video);
+    overlay.appendChild(video);
 
-  document.body.appendChild(overlay);
+    document.body.appendChild(overlay);
 
-  confetti({
-    particleCount: 250,
-    spread: 120,
-  });
+    confetti({
+      particleCount: 250,
+      spread: 120,
+    });
 
-  sound.play('reward');
+    sound.play('reward');
 
-  // AUTO CLOSE
-  video.onended = () => {
-    overlay.remove();
+    // AUTO CLOSE
+    video.onended = () => {
+      overlay.remove();
+    };
+
+    // FALLBACK
+    setTimeout(() => {
+      overlay.remove();
+    }, 8000);
   };
-
-  // FALLBACK
-  setTimeout(() => {
-    overlay.remove();
-  }, 8000);
-};
 
   const unlockParentMode = () => {
     if (parentCode.toLowerCase() === SECRET_CODE) {
@@ -926,24 +925,24 @@ const playDanceVideo = (gender: string = 'boy') => {
     <div style={container}>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <div style={{ marginBottom: 20 }}>
-          <input
-            type="password"
-            placeholder="Parent Secret"
-            value={parentCode}
-            onChange={(e) => setParentCode(e.target.value)}
-            style={{
-              padding: 10,
-              borderRadius: 10,
-              border: '1px solid #ccc',
-              marginRight: 10,
-            }}
-          />
+          <div style={{ marginBottom: 20 }}>
+            <input
+              type="password"
+              placeholder="Parent Secret"
+              value={parentCode}
+              onChange={(e) => setParentCode(e.target.value)}
+              style={{
+                padding: 10,
+                borderRadius: 10,
+                border: '1px solid #ccc',
+                marginRight: 10,
+              }}
+            />
 
-          <button style={btn} onClick={unlockParentMode}>
-            Unlock Parent Mode
-          </button>
-        </div>
+            <button style={btn} onClick={unlockParentMode}>
+              Unlock Parent Mode
+            </button>
+          </div>
           <span>{session.user?.email}</span>
 
           <button style={btn} onClick={signOut}>
@@ -1005,41 +1004,41 @@ const playDanceVideo = (gender: string = 'boy') => {
                 >
                   <div>⭐ Total: {u.totalpoints || 0}</div>
                   <div>🔥 Today: {state[u.id]?.todayXP || 0}</div>
-                                   <div> <button
-  disabled={!parentUnlocked || wellBehavedUsed[u.id]}
-  onClick={() => {
-    playDanceVideo(u.gender);
-  
-    setWellBehavedUsed(prev => ({
-      ...prev,
-      [u.id]: true,
-    }));
-  }}
-  style={{
-    ...btn,
-    background:
-      !parentUnlocked || wellBehavedUsed[u.id]
-        ? '#ccc'
-        : '#51cf66',
+                  <div> <button
+                    disabled={!parentUnlocked || wellBehavedUsed[u.id]}
+                    onClick={() => {
+                      playDanceVideo(u.gender);
 
-    color: 'white',
-    fontWeight: 'bold',
+                      setWellBehavedUsed(prev => ({
+                        ...prev,
+                        [u.id]: true,
+                      }));
+                    }}
+                    style={{
+                      ...btn,
+                      background:
+                        !parentUnlocked || wellBehavedUsed[u.id]
+                          ? '#ccc'
+                          : '#51cf66',
 
-    cursor:
-      !parentUnlocked || wellBehavedUsed[u.id]
-        ? 'not-allowed'
-        : 'pointer',
+                      color: 'white',
+                      fontWeight: 'bold',
 
-    opacity:
-      !parentUnlocked || wellBehavedUsed[u.id]
-        ? 0.6
-        : 1,
-  }}
->
-  {wellBehavedUsed[u.id]
-    ? '✅ Reward Given'
-    : '⭐ Well Behaved'}
-</button></div>
+                      cursor:
+                        !parentUnlocked || wellBehavedUsed[u.id]
+                          ? 'not-allowed'
+                          : 'pointer',
+
+                      opacity:
+                        !parentUnlocked || wellBehavedUsed[u.id]
+                          ? 0.6
+                          : 1,
+                    }}
+                  >
+                    {wellBehavedUsed[u.id]
+                      ? '✅ Reward Given'
+                      : '⭐ Well Behaved'}
+                  </button></div>
                 </div>
               </div>
 

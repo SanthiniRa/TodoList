@@ -460,7 +460,7 @@ export default function App() {
         dailyJar: [...prev[user.id].dailyJar, item.title],
       },
     }));
-  
+
     // 3. insert redemption
     await supabase.from('reward_redemptions').insert({
       user_id: user.id,
@@ -477,6 +477,14 @@ export default function App() {
       .eq('id', user.id);
   
     // OPTIONAL: refresh state if you want perfect sync
+    // update users (this fixes XP display)
+    setUsers(prev =>
+      prev.map(u =>
+        u.id === user.id
+          ? { ...u, totalpoints: currentXP - item.points_required }
+          : u
+      )
+    );
     // await loadData();
   };
   /*-----------Reward <room----></room----*/
@@ -998,7 +1006,7 @@ const playDanceVideo = (gender: string = 'boy') => {
                                    <div> <button
   disabled={!parentUnlocked || wellBehavedUsed[u.id]}
   onClick={() => {
-    //playDanceVideo(u.gender);
+    playDanceVideo(u.gender);
   
     setWellBehavedUsed(prev => ({
       ...prev,

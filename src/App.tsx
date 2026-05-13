@@ -258,7 +258,7 @@ export default function App() {
       const totalXP = earnedPoints - spentPoints;
   
       newState[user.id] = {
-        xp: totalXP,
+        xp: user.totalpoints || 0,
         todayXP,
         tasks: (tasksData || []).map(t => ({
           id: t.id,

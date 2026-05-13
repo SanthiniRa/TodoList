@@ -122,13 +122,16 @@ const getTaskIcon = (title: string) => {
   if (t.includes('make bed')) return '🛏️';
 
   // FAMILY / KINDNESS
-  if (t.includes('hug')) return '🤗';
+  if (t.includes('greeting')) return '🤗';
   if (t.includes('chatty')) return '💬';
 
   // NIGHT
   if (t.includes('night')) return '🌙';
   if (t.includes('sleep')) return '😴';
-
+  
+    // NIGHT
+    if (t.includes('phone')) return '📱';
+    if (t.includes('sleep')) return '🌞';
   // SPIRITUAL
   if (t.includes('pray')) return '🙏';
 

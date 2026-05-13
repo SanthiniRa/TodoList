@@ -195,89 +195,91 @@ export default function App() {
     };
   }, []);
   /* ================= LOAD ================= */
+  const loadData = async () => {
+    const { data: usersData } = await supabase.from('users').select('*');
+    const { data: tasksData } = await supabase.from('tasks').select('*');
+  
+    const today = new Date().toISOString().split('T')[0];
+  
+    const { data: allCompletions } = await supabase
+      .from('task_completions')
+      .select('*');
+  
+    const { data: todayCompletions } = await supabase
+      .from('task_completions')
+      .select('*')
+      .eq('date', today);
+  
+    const { data: redeemed } = await supabase.from('reward_redemptions').select('*');
+    const { data: rewardsData } = await supabase.from('rewards').select('*');
+  
+    setRewards(rewardsData || []);
+    setUsers(usersData || []);
+  
+    const stickerState: any = {};
+  
+    (usersData || []).forEach(user => {
+      const completed = hasCompletedAllTasksThisWeek(
+        user.id,
+        tasksData || [],
+        allCompletions || []
+      );
+  
+      stickerState[user.id] = completed;
+    });
+  
+    setStickers(stickerState);
+  
+    const newState: any = {};
+    const jarInit: any = {};
+  
+    (usersData || []).forEach(user => {
+      jarInit[user.id] = user.emoji || [];
+  
+      const userRewards = redeemed?.filter(r => r.user_id === user.id) || [];
+      const userCompletions = allCompletions?.filter(c => c.user_id === user.id) || [];
+      const userTodayCompletions = todayCompletions?.filter(c => c.user_id === user.id) || [];
+  
+      const todayXP = userTodayCompletions.reduce(
+        (sum, c) => sum + (c.point_earned || 0),
+        0
+      );
+  
+      const earnedPoints = userCompletions.reduce(
+        (sum, c) => sum + (c.point_earned || 0),
+        0
+      );
+  
+      const spentPoints = userRewards.reduce(
+        (sum, r) => sum + (r.points_spent || 0),
+        0
+      );
+  
+      const totalXP = earnedPoints - spentPoints;
+  
+      newState[user.id] = {
+        xp: totalXP,
+        todayXP,
+        tasks: (tasksData || []).map(t => ({
+          id: t.id,
+          icon: getTaskIcon(t.title),
+          text: t.title,
+          description: t.description || 'MORN',
+          reward_point: t.reward_point || 10,
+          done: userTodayCompletions.some(c => c.task_id === t.id),
+        })),
+        dailyJar: userRewards
+          .map(r => rewardsData?.find(x => x.id === r.reward_id)?.title)
+          .filter(Boolean),
+      };
+    });
+  
+    setState(newState);
+    setKindnessJar(jarInit);
+  };
+  
   useEffect(() => {
-    const loadData = async () => {
-      const { data: usersData } = await supabase.from('users').select('*');
-      const { data: tasksData } = await supabase.from('tasks').select('*');
-      const today = new Date().toISOString().split('T')[0];
-
-      // ALL TIME XP
-      const { data: allCompletions } = await supabase
-        .from('task_completions')
-        .select('*');
-
-      // TODAY XP
-      const { data: todayCompletions } = await supabase
-        .from('task_completions')
-        .select('*')
-        .eq('date', today);
-      const { data: redeemed } = await supabase.from('reward_redemptions').select('*');
-      const { data: rewardsData } = await supabase.from('rewards').select('*');
-      setRewards(rewardsData || []);
-      setUsers(usersData || []);
-      const stickerState: any = {};
-
-      (usersData || []).forEach(user => {
-        const completed = hasCompletedAllTasksThisWeek(
-          user.id,
-          tasksData || [],
-          allCompletions || []
-        );
-
-        stickerState[user.id] = completed;
-      });
-      setStickers(stickerState);
-      const newState: any = {};
-      const jarInit: any = {};
-      (usersData || []).forEach(user => {
-        jarInit[user.id] = user.emoji || [];
-        const userRewards =
-          redeemed?.filter(r => r.user_id === user.id) || [];
-        const userCompletions =
-          allCompletions?.filter(c => c.user_id === user.id) || [];
-
-        const userTodayCompletions =
-          todayCompletions?.filter(c => c.user_id === user.id) || [];
-
-          const todayXP = userTodayCompletions.reduce(
-            (sum, c) => sum + (c.point_earned || 0),
-            0
-          );
-        const earnedPoints = userCompletions.reduce(
-          (sum, c) => sum + (c.point_earned || 0),
-          0
-        );
-        
-        const spentPoints = userRewards.reduce(
-          (sum, r) => sum + (r.points_spent || 0),
-          0
-        );
-        
-        const totalXP = earnedPoints - spentPoints;
-
-        newState[user.id] = {
-          xp: totalXP,
-          todayXP,
-          tasks: (tasksData || []).map(t => ({
-            id: t.id,
-            icon: getTaskIcon(t.title),
-            text: t.title,
-            description: t.description || 'MORN',
-            reward_point: t.reward_point || 10,
-            done: userTodayCompletions.some(c => c.task_id === t.id),
-          })),
-          dailyJar: userRewards
-            .map(r => rewardsData?.find(x => x.id === r.reward_id)?.title)
-            .filter(Boolean),
-        };
-      });
-
-      setState(newState);
-      setKindnessJar(jarInit);
-    };
-    (async () => {
-      await loadData();
-    })();
+    loadData();
   }, []);
 
   useEffect(() => {

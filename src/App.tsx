@@ -142,7 +142,9 @@ const getTaskIcon = (title: string) => {
 
 const ROOM_SLOTS = 40;
 const SECRET_CODE = 'superparent';
-
+const preload = document.createElement('video');
+preload.src = '/videos/boy_dancing.mp4';
+preload.preload = 'auto';
 export default function App() {
   const sound = useRef(createSoundManager()).current;
   const engine = useRef(createSoundEngine(sound)).current;
@@ -607,9 +609,9 @@ export default function App() {
     );
   };
   //Dancing avatar
-  const playDanceVideo = (gender: string = 'boy') => {
+  const playDanceVideo = async (gender: string = 'boy') => {
     const overlay = document.createElement('div');
-
+  
     overlay.style.position = 'fixed';
     overlay.style.inset = '0';
     overlay.style.background = 'rgba(0,0,0,0.75)';
@@ -617,41 +619,55 @@ export default function App() {
     overlay.style.alignItems = 'center';
     overlay.style.justifyContent = 'center';
     overlay.style.zIndex = '99999';
-
+  
     // VIDEO
     const video = document.createElement('video');
-
+  
     video.src =
       gender === 'girl'
-        ? '/videos/boy_dancing.mp4'
+        ? '/videos/girl_dancing.mp4'
         : '/videos/boy_dancing.mp4';
-
-    video.autoplay = true;
-    video.muted = false;
-    video.loop = false;
+  
+    // IMPORTANT
+    video.preload = 'auto';
+    video.muted = true; // browsers allow autoplay only if muted
     video.playsInline = true;
-
+    video.loop = false;
+    video.autoplay = false;
+  
     video.style.width = '420px';
     video.style.maxWidth = '90vw';
     video.style.borderRadius = '24px';
     video.style.boxShadow = '0 0 40px rgba(255,255,255,0.5)';
-
+  
     overlay.appendChild(video);
-
     document.body.appendChild(overlay);
-
+  
     confetti({
       particleCount: 250,
       spread: 120,
     });
-
+  
     sound.play('reward');
-
+  
+    // Wait until video can play
+    video.addEventListener(
+      'canplaythrough',
+      async () => {
+        try {
+          await video.play();
+        } catch (err) {
+          console.error('Video play failed:', err);
+        }
+      },
+      { once: true }
+    );
+  
     // AUTO CLOSE
     video.onended = () => {
       overlay.remove();
     };
-
+  
     // FALLBACK
     setTimeout(() => {
       overlay.remove();
@@ -1054,9 +1070,10 @@ export default function App() {
                       onClick={() => {
                         if (!t.done) {
                           confetti();
+                          sound.unlock();
+                          engine.click();
                         }
-                        sound.unlock();
-                        engine.click();
+
                         toggleTask(u, t.id)
                       }}
                       style={{
@@ -1176,10 +1193,10 @@ export default function App() {
 
                   {/* BUTTONS */}
                   <div style={{ marginTop: 10 }}>
-                    <button style={btn} onClick={() => addKindness(u.id, '💖')}>💖</button>
-                    <button style={btn} onClick={() => addKindness(u.id, '🤗')}>🤗</button>
-                    <button style={btn} onClick={() => addKindness(u.id, '🌟')}>🌟</button>
-                    <button style={btn} onClick={() => addKindness(u.id, '😊')}>😊</button>
+                    <button disabled={!parentUnlocked} style={btn} onClick={() => addKindness(u.id, '💖')}>💖</button>
+                    <button disabled={!parentUnlocked} style={btn} onClick={() => addKindness(u.id, '🤗')}>🤗</button>
+                    <button disabled={!parentUnlocked} style={btn} onClick={() => addKindness(u.id, '🌟')}>🌟</button>
+                    <button disabled={!parentUnlocked} style={btn} onClick={() => addKindness(u.id, '😊')}>😊</button>
                   </div>
                   <div style={{ marginTop: 20, textAlign: 'center' }}>
 

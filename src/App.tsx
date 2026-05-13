@@ -255,8 +255,6 @@ export default function App() {
         0
       );
   
-      const totalXP = earnedPoints - spentPoints;
-  
       newState[user.id] = {
         xp: user.totalpoints || 0,
         todayXP,
@@ -372,46 +370,14 @@ export default function App() {
 
   /* ================= TASK ================= */
   const toggleTask = async (user: any, taskId: string) => {
-    const task = state[user.id]?.tasks?.find(
-      (t: any) => t.id === taskId
-    );
-  
+    const task = state[user.id]?.tasks?.find((t: any) => t.id === taskId);
     if (!task) return;
   
     const isDone = task.done;
+    const delta = isDone ? -task.reward_point : task.reward_point;
   
-    setState(prev => {
-      const updated = prev[user.id].tasks.map((t: any) =>
-        t.id === taskId
-          ? { ...t, done: !t.done }
-          : t
-      );
-  
-      const todayXP = updated
-        .filter((t: any) => t.done)
-        .reduce(
-          (sum: number, t: any) =>
-            sum + (t.reward_point || 0),
-          0
-        );
-  
-      return {
-        ...prev,
-        [user.id]: {
-          ...prev[user.id],
-          tasks: updated,
-          todayXP,
-          xp:
-            prev[user.id].xp +
-            (isDone
-              ? -(task.reward_point || 0)
-              : (task.reward_point || 0)),
-        },
-      };
-    });
-  
+    // 1. update completion table first
     if (!isDone) {
-  
       await supabase.from('task_completions').insert({
         user_id: user.id,
         task_id: taskId,
@@ -419,76 +385,100 @@ export default function App() {
         completed: true,
         date: new Date().toISOString().split('T')[0],
       });
-  
-      await supabase
-        .from('users')
-        .update({
-          totalpoints:
-            (state[user.id]?.xp || 0) +
-            (task.reward_point || 0),
-        })
-        .eq('id', user.id);
-  
     } else {
-  
       await supabase
         .from('task_completions')
         .delete()
         .eq('user_id', user.id)
         .eq('task_id', taskId);
-  
-      await supabase
-        .from('users')
-        .update({
-          totalpoints: Math.max(
-            0,
-            (state[user.id]?.xp || 0) -
-              (task.reward_point || 0)
-          ),
-        })
-        .eq('id', user.id);
     }
+  
+    // 2. get fresh XP from DB FIRST (important fix)
+    const { data: currentUser } = await supabase
+      .from('users')
+      .select('totalpoints')
+      .eq('id', user.id)
+      .single();
+  
+    const newXP = (currentUser?.totalpoints || 0) + delta;
+  
+    // 3. update DB
+    await supabase
+      .from('users')
+      .update({ totalpoints: newXP })
+      .eq('id', user.id);
+  
+    // 4. update UI safely
+    setState(prev => {
+      const updated = prev[user.id].tasks.map((t: any) =>
+        t.id === taskId ? { ...t, done: !t.done } : t
+      );
+  
+      const todayXP = updated
+        .filter((t: any) => t.done)
+        .reduce((sum: number, t: any) => sum + (t.reward_point || 0), 0);
+  
+      return {
+        ...prev,
+        [user.id]: {
+          ...prev[user.id],
+          tasks: updated,
+          todayXP,
+          xp: newXP, // ✅ now correct
+        },
+      };
+    });
   };
 
   /* ================= REWARD ================= */
   const buyReward = async (user: any, item: any) => {
-    sound.unlock(); // keep this
+    sound.unlock();
     if (!item) return;
-    if (item.title.toLowerCase().includes('car')) {
-      moveCar(); // 🚙 special animation
-    }
-    if (item.title.toLowerCase().includes('jeep')) {
-      jeepRideEffect();
-
-      setTimeout(() => {
-      }, 9000);
-    }
-    if (item.title.toLowerCase().includes('trophy')) {
-      trophyDance(); // 🚙 special animation
-    }
-    setState(prev => {
-      const kid = prev[user.id];
-      if (kid.xp < item.points_required) return prev;
-
-      confetti();
-
-      return {
-        ...prev,
-        [user.id]: {
-          ...kid,
-          xp: kid.xp - item.points_required,
-          dailyJar: [...kid.dailyJar, item.title],
-        },
-      };
-    });
-
+  
+    if (item.title.toLowerCase().includes('car')) moveCar();
+    if (item.title.toLowerCase().includes('jeep')) jeepRideEffect();
+    if (item.title.toLowerCase().includes('trophy')) trophyDance();
+  
+    // 1. GET FRESH XP FROM DB (authoritative check)
+    const { data: userData } = await supabase
+      .from('users')
+      .select('totalpoints')
+      .eq('id', user.id)
+      .single();
+  
+    const currentXP = userData?.totalpoints || 0;
+  
+    if (currentXP < item.points_required) return;
+  
+    confetti();
+  
+    // 2. optimistic UI update (NO XP HERE)
+    setState(prev => ({
+      ...prev,
+      [user.id]: {
+        ...prev[user.id],
+        dailyJar: [...prev[user.id].dailyJar, item.title],
+      },
+    }));
+  
+    // 3. insert redemption
     await supabase.from('reward_redemptions').insert({
       user_id: user.id,
       reward_id: item.id,
       points_spent: item.points_required,
     });
+  
+    // 4. update DB (source of truth)
+    await supabase
+      .from('users')
+      .update({
+        totalpoints: currentXP - item.points_required,
+      })
+      .eq('id', user.id);
+  
+    // OPTIONAL: refresh state if you want perfect sync
+    // await loadData();
   };
-
   /*-----------Reward <room----></room----*/
   const getRoomColor = (gender: string) => {
     if (gender === 'girl') {
@@ -1003,7 +993,7 @@ const playDanceVideo = (gender: string = 'boy') => {
                     minWidth: 80,
                   }}
                 >
-                  <div>⭐ Total: {state[u.id]?.xp || 0}</div>
+                  <div>⭐ Total: {u.totalpoints || 0}</div>
                   <div>🔥 Today: {state[u.id]?.todayXP || 0}</div>
                                    <div> <button
   disabled={!parentUnlocked || wellBehavedUsed[u.id]}
@@ -1080,7 +1070,7 @@ const playDanceVideo = (gender: string = 'boy') => {
                 {rewards.map((r: any, i: number) => (
                   <button
                     key={r.id}
-                    disabled={(state[u.id]?.xp || 0) < r.points_required}
+                    disabled={(u.totalpoints || 0) < r.points_required}
                     onClick={() => buyReward(u, r)}
                     style={{
                       ...btn,

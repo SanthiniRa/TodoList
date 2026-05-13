@@ -1049,7 +1049,9 @@ export default function App() {
                     <button
                       key={t.id}
                       onClick={() => {
-                        confetti();
+                        if (!t.done) {
+                          confetti();
+                        }
                         sound.unlock();
                         engine.click();
                         toggleTask(u, t.id)

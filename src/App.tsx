@@ -448,10 +448,6 @@ export default function App() {
         })
         .eq('id', user.id);
     }
-  
-    (async () => {
-      await loadData();
-    })();
   };
 
   /* ================= REWARD ================= */

@@ -142,15 +142,7 @@ const getTaskIcon = (title: string) => {
 
 const ROOM_SLOTS = 40;
 const SECRET_CODE = 'superparent';
-useEffect(() => {
-  const preloadVideo = document.createElement('video');
 
-  preloadVideo.src = '/videos/boy_dancing.mp4';
-  preloadVideo.preload = 'auto';
-  preloadVideo.muted = true;
-
-  preloadVideo.load();
-}, []);
 export default function App() {
   const sound = useRef(createSoundManager()).current;
   const engine = useRef(createSoundEngine(sound)).current;
@@ -289,6 +281,16 @@ export default function App() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    const preloadVideo = document.createElement('video');
+  
+    preloadVideo.src = '/videos/boy_dancing.mp4';
+    preloadVideo.preload = 'auto';
+    preloadVideo.muted = true;
+  
+    preloadVideo.load();
   }, []);
 
   useEffect(() => {
@@ -622,7 +624,7 @@ export default function App() {
       alert('Wrong secret code');
     }
   };
-  
+
   //Dancing avatar
   const playDanceVideo = async (gender: string = 'boy') => {
     // REMOVE OLD OVERLAY IF EXISTS

@@ -275,8 +275,9 @@ export default function App() {
       setState(newState);
       setKindnessJar(jarInit);
     };
-    await loadData();
-    load();
+    (async () => {
+      await loadData();
+    })();
   }, []);
 
   useEffect(() => {
@@ -446,7 +447,9 @@ export default function App() {
         .eq('id', user.id);
     }
   
-    await loadData();
+    (async () => {
+      await loadData();
+    })();
   };
 
   /* ================= REWARD ================= */

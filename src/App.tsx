@@ -73,12 +73,12 @@ const createSoundEngine = (s: any) => ({
 
 
 /* TIME */
-const timeSlots = ['morning', 'afternoon', 'evening'] as const;
+const timeSlots = ['morning', 'evening'] as const;
 type TimeSlot = typeof timeSlots[number];
 
 const ROUTINE: Record<TimeSlot, string[]> = {
   morning: ['MORN'],
-  afternoon: ['AFT'],
+  //afternoon: ['AFT'],
   evening: ['EVE'],
   //night: ['MORN', 'AFT', 'EVE'],
 };
